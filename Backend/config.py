@@ -7,7 +7,7 @@ SERVER_ADDRESS = "127.0.0.1:8188"
 CLIENT_ID = str(uuid.uuid4())
 
 # Prompt Defaults
-DEFAULT_POSITIVE_PREFIX = ["masterpiece", "best quality", "score_7", "safe", "highres", "year 2025", "newest"]
+DEFAULT_POSITIVE_PREFIX = ["masterpiece", "best quality", "score_7", "highres", "year 2025", "newest"]
 DEFAULT_NEGATIVE_PROMPT = "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia"
 
 # Generation Defaults
