@@ -1,0 +1,179 @@
+import websocket
+import uuid
+import json
+import requests
+import copy
+import random
+import csv
+import os
+import argparse
+
+# Configuration
+server_address = "127.0.0.1:8188"
+client_id = str(uuid.uuid4())
+
+def queue_prompt(prompt):
+    p = {"prompt": prompt, "client_id": client_id}
+    data = json.dumps(p).encode('utf-8')
+    req = requests.post(f"http://{server_address}/prompt", data=data)
+    return req.json()
+
+def get_images(ws, prompt):
+    prompt_id = queue_prompt(prompt)['prompt_id']
+    print(f"Queued prompt ID: {prompt_id}")
+    
+    while True:
+        out = ws.recv()
+        if isinstance(out, str):
+            message = json.loads(out)
+            if message['type'] == 'executing':
+                data = message['data']
+                # Node None means the whole prompt finished
+                if data['node'] is None and data['prompt_id'] == prompt_id:
+                    break
+        else:
+            continue
+
+    # Fetch history
+    history_res = requests.get(f"http://{server_address}/history/{prompt_id}").json()
+    
+    if prompt_id not in history_res:
+        print(f"Error: Prompt {prompt_id} not found in history. It might have crashed.")
+        return []
+
+    history = history_res[prompt_id]
+    
+    # DEBUG: See what nodes actually gave output
+    print("Nodes with output:", list(history.get('outputs', {}).keys()))
+
+    if 'outputs' in history and '46' in history['outputs']:
+        return history['outputs']['46']['images']
+    else:
+        print("Warning: Node 46 did not produce any output. Check ComfyUI console for errors.")
+        return []
+
+def build_positive_prompt(subject="1girl", character="", series="", artist="", general_tags="", natural_language=""):
+    """
+    Builds a prompt following the rules from prompting.txt:
+    [quality/meta/year/safety tags] [1girl/1boy/1other etc] [character] [series] [artist] [general tags]
+    """
+    # Recommended prefix setup from rules
+    tags = ["masterpiece", "best quality", "score_7", "safe", "highres", "year 2025", "newest"]
+    
+    if subject: tags.append(subject)
+    if character: tags.append(character)
+    if series: tags.append(series)
+    if artist: tags.append(f"@{artist}")  # Artist tags must be prefixed with @
+    if general_tags: tags.append(general_tags)
+    
+    prompt = ", ".join(tags)
+    
+    # Allow mixing tags and natural language combinations (min. 2 sentences recommended)
+    if natural_language:
+        prompt = f"{prompt}. {natural_language}"
+        
+    return prompt
+
+def build_negative_prompt(extra_tags=""):
+    """Builds a negative prompt based on recommended defaults from prompting.txt."""
+    base = "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia"
+    if extra_tags:
+        return f"{base}, {extra_tags}"
+    return base
+
+def generate_image(ws, base_workflow, positive_prompt, negative_prompt, width=1024, height=1024):
+    """Prepares a unique workflow and queues it for execution."""
+    workflow = copy.deepcopy(base_workflow)
+    
+    # Modify parameters for this specific run
+    workflow["11"]["inputs"]["text"] = positive_prompt
+    workflow["12"]["inputs"]["text"] = negative_prompt
+    seed=random.randint(0, 2**32 - 1)
+    print(f"Seeded with: {seed}")
+    workflow["19"]["inputs"]["seed"] = seed
+    workflow["28"]["inputs"]["width"] = width
+    workflow["28"]["inputs"]["height"] = height
+    
+    return get_images(ws, workflow)
+
+def load_jobs(filepath):
+    """Loads job configurations from a JSON or CSV file."""
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"Job file not found: {filepath}")
+        
+    _, ext = os.path.splitext(filepath)
+    
+    if ext.lower() == '.json':
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    elif ext.lower() == '.csv':
+        jobs = []
+        with open(filepath, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # Remove empty fields so default kwargs work correctly
+                cleaned_row = {k: v.strip() for k, v in row.items() if v and v.strip()}
+                jobs.append(cleaned_row)
+        return jobs
+    else:
+        raise ValueError(f"Unsupported file format: {ext}. Please use .json or .csv")
+
+def run_pipeline(jobs_filepath):
+    """Automated pipeline to process multiple image generation tasks sequentially."""
+    # 1. Load jobs from external file
+    jobs = load_jobs(jobs_filepath)
+    if not jobs:
+        print("No jobs found. Exiting.")
+        return
+
+    # 2. Load the base workflow
+    with open("example.json", "r") as f:
+        base_workflow = json.load(f)
+
+    # 3. Connect to WebSocket
+    ws = websocket.WebSocket()
+    ws.connect(f"ws://{server_address}/ws?clientId={client_id}")
+
+    # 4. Execute pipeline sequentially
+    for i, job in enumerate(jobs, 1):
+        # Check if the job is enabled
+        enabled = str(job.get('enabled', 'true')).strip().lower()
+        if enabled in ['false', '0', 'no', 'f', 'disabled']:
+            print(f"\n--- Skipping Job {i}/{len(jobs)} (Disabled) ---")
+            continue
+            
+        # Get number of images to generate (default to 1)
+        num_images = int(job.get('num_images', 1))
+        
+        print(f"\n--- Starting Job {i}/{len(jobs)} ---")
+        
+        # Filter kwargs to prevent TypeError if extra columns exist in the CSV/JSON
+        valid_keys = {"subject", "character", "series", "artist", "general_tags", "natural_language"}
+        prompt_kwargs = {k: v for k, v in job.items() if k in valid_keys}
+        
+        pos_prompt = build_positive_prompt(**prompt_kwargs)
+        neg_prompt = build_negative_prompt()
+        
+        print(f"Positive Prompt:\n{pos_prompt}")
+        print(f"Generating {num_images} image(s) for job {i}...")
+        
+        for img_idx in range(num_images):
+            print(f"  -> Queuing image {img_idx + 1}/{num_images} for job {i}...")
+            images = generate_image(ws, base_workflow, pos_prompt, neg_prompt)
+            
+            for image in images:
+                print(f"     Success! Image saved as: {image['filename']}")
+                print(f"     Download URL: http://{server_address}/view?filename={image['filename']}&type=output")
+    
+    ws.close()
+    print("\nPipeline finished.")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run ComfyUI Automated Image Generation Pipeline")
+    parser.add_argument("--jobs", type=str, default="jobs.json", help="Path to the jobs JSON or CSV file")
+    args = parser.parse_args()
+    
+    try:
+        run_pipeline(args.jobs)
+    except Exception as e:
+        print(f"Pipeline failed: {e}")
