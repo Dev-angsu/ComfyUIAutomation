@@ -34,6 +34,7 @@ MODEL_UNET_NAME = "anima-preview3-base.safetensors"
 MODEL_VAE_NAME = "qwen_image_vae.safetensors"
 MODEL_CLIP_NAME = "qwen_3_06b_base.safetensors"
 DEFAULT_OUTPUT_FILENAME_PREFIX = "ComfyUI_Auto"
+
 # ==========================================
 
 def queue_prompt(prompt):
@@ -104,6 +105,23 @@ def build_negative_prompt(extra_tags=""):
     if extra_tags:
         return f"{base}, {extra_tags}"
     return base
+
+def build_dynamic_prompt(templates, dictionary):
+    """Generates a random prompt using provided templates and dictionary."""
+    template = random.choice(templates)
+    chosen_character = ""
+    
+    for key, options in dictionary.items():
+        if key in template:
+            val = random.choice(options)
+            if key == "CHARACTER":
+                # Clean up character name slightly for filename (e.g. "Rem (Re:Zero)" -> "Rem")
+                chosen_character = val.split(" (")[0].replace(" from ", "_").strip()
+            template = template.replace(key, val)
+            
+    prefix = ", ".join(DEFAULT_POSITIVE_PREFIX)
+    prompt = f"{prefix}. {template}"
+    return prompt, chosen_character
 
 def generate_image(ws, base_workflow, positive_prompt, negative_prompt, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, output_prefix=DEFAULT_OUTPUT_FILENAME_PREFIX):
     """Prepares a unique workflow and queues it for execution."""
@@ -208,12 +226,60 @@ def run_pipeline(jobs_filepath):
     ws.close()
     print("\nPipeline finished.")
 
+def run_dynamic_pipeline(count=1, dict_filepath="dictionaries.json"):
+    """Automated pipeline to generate multiple random images based on templates."""
+    # 0. Load the dynamic dictionaries
+    if not os.path.exists(dict_filepath):
+        print(f"Error: Dictionary file not found: {dict_filepath}")
+        return
+        
+    with open(dict_filepath, 'r', encoding='utf-8') as f:
+        dynamic_config = json.load(f)
+        
+    templates = dynamic_config.get("DYNAMIC_TEMPLATES", [])
+    dictionary = dynamic_config.get("DYNAMIC_DICTIONARY", {})
+
+    # 1. Load the base workflow
+    with open("example.json", "r") as f:
+        base_workflow = json.load(f)
+
+    # 2. Connect to WebSocket
+    ws = websocket.WebSocket()
+    ws.connect(f"ws://{SERVER_ADDRESS}/ws?clientId={CLIENT_ID}")
+
+    # 3. Execute dynamically generated pipeline
+    print(f"\nStarting Dynamic Pipeline: Generating {count} images...")
+    for i in range(1, count + 1):
+        print(f"\n--- Starting Dynamic Job {i}/{count} ---")
+        
+        pos_prompt, char_name = build_dynamic_prompt(templates, dictionary)
+        neg_prompt = build_negative_prompt()
+        filename_prefix = char_name if char_name else DEFAULT_OUTPUT_FILENAME_PREFIX
+        
+        print(f"Positive Prompt:\n{pos_prompt}")
+        
+        images = generate_image(ws, base_workflow, pos_prompt, neg_prompt, output_prefix=filename_prefix)
+        
+        for image in images:
+            print(f"     Success! Image saved as: {image['filename']}")
+            print(f"     Download URL: http://{SERVER_ADDRESS}/view?filename={image['filename']}&type=output")
+    
+    ws.close()
+    print("\nDynamic Pipeline finished.")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run ComfyUI Automated Image Generation Pipeline")
-    parser.add_argument("--jobs", type=str, default="jobs.json", help="Path to the jobs JSON or CSV file")
+    parser.add_argument("--mode", type=str, choices=["jobs", "dynamic"], default="jobs", 
+                        help="Select 'jobs' to run from a file, or 'dynamic' for randomized template prompts")
+    parser.add_argument("--jobs", type=str, default="jobs.json", help="Path to the jobs JSON or CSV file (for 'jobs' mode)")
+    parser.add_argument("--dict", type=str, default="dictionaries.json", help="Path to the dynamic dictionary JSON file (for 'dynamic' mode)")
+    parser.add_argument("--count", type=int, default=1, help="Number of images to generate (for 'dynamic' mode)")
     args = parser.parse_args()
     
     try:
-        run_pipeline(args.jobs)
+        if args.mode == "jobs":
+            run_pipeline(args.jobs)
+        elif args.mode == "dynamic":
+            run_dynamic_pipeline(args.count, args.dict)
     except Exception as e:
         print(f"Pipeline failed: {e}")

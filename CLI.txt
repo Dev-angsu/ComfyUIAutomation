@@ -1,0 +1,3 @@
+python app.py --mode jobs --jobs ../Jobs/jobs.csv
+
+python app.py --mode dynamic --count 10 --dict ../Jobs/demodictionary.json
