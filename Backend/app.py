@@ -8,14 +8,38 @@ import csv
 import os
 import argparse
 
-# Configuration
-server_address = "127.0.0.1:8188"
-client_id = str(uuid.uuid4())
+# ==========================================
+# Configuration Section
+# ==========================================
+SERVER_ADDRESS = "127.0.0.1:8188"
+CLIENT_ID = str(uuid.uuid4())
+
+# Prompt Defaults
+DEFAULT_POSITIVE_PREFIX = ["masterpiece", "best quality", "score_7", "safe", "highres", "year 2025", "newest"]
+DEFAULT_NEGATIVE_PROMPT = "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia"
+
+# Generation Defaults
+DEFAULT_WIDTH = 1024
+DEFAULT_HEIGHT = 1024
+
+# KSampler Settings
+KSAMPLER_STEPS = 30
+KSAMPLER_CFG = 4.0
+KSAMPLER_SAMPLER_NAME = "er_sde"
+KSAMPLER_SCHEDULER = "simple"
+KSAMPLER_DENOISE = 1.0
+
+# Models & Outputs
+MODEL_UNET_NAME = "anima-preview3-base.safetensors"
+MODEL_VAE_NAME = "qwen_image_vae.safetensors"
+MODEL_CLIP_NAME = "qwen_3_06b_base.safetensors"
+DEFAULT_OUTPUT_FILENAME_PREFIX = "ComfyUI_Auto"
+# ==========================================
 
 def queue_prompt(prompt):
-    p = {"prompt": prompt, "client_id": client_id}
+    p = {"prompt": prompt, "client_id": CLIENT_ID}
     data = json.dumps(p).encode('utf-8')
-    req = requests.post(f"http://{server_address}/prompt", data=data)
+    req = requests.post(f"http://{SERVER_ADDRESS}/prompt", data=data)
     return req.json()
 
 def get_images(ws, prompt):
@@ -35,7 +59,7 @@ def get_images(ws, prompt):
             continue
 
     # Fetch history
-    history_res = requests.get(f"http://{server_address}/history/{prompt_id}").json()
+    history_res = requests.get(f"http://{SERVER_ADDRESS}/history/{prompt_id}").json()
     
     if prompt_id not in history_res:
         print(f"Error: Prompt {prompt_id} not found in history. It might have crashed.")
@@ -58,7 +82,7 @@ def build_positive_prompt(subject="1girl", character="", series="", artist="", g
     [quality/meta/year/safety tags] [1girl/1boy/1other etc] [character] [series] [artist] [general tags]
     """
     # Recommended prefix setup from rules
-    tags = ["masterpiece", "best quality", "score_7", "safe", "highres", "year 2025", "newest"]
+    tags = list(DEFAULT_POSITIVE_PREFIX)
     
     if subject: tags.append(subject)
     if character: tags.append(character)
@@ -76,12 +100,12 @@ def build_positive_prompt(subject="1girl", character="", series="", artist="", g
 
 def build_negative_prompt(extra_tags=""):
     """Builds a negative prompt based on recommended defaults from prompting.txt."""
-    base = "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia"
+    base = DEFAULT_NEGATIVE_PROMPT
     if extra_tags:
         return f"{base}, {extra_tags}"
     return base
 
-def generate_image(ws, base_workflow, positive_prompt, negative_prompt, width=1024, height=1024):
+def generate_image(ws, base_workflow, positive_prompt, negative_prompt, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, output_prefix=DEFAULT_OUTPUT_FILENAME_PREFIX):
     """Prepares a unique workflow and queues it for execution."""
     workflow = copy.deepcopy(base_workflow)
     
@@ -91,8 +115,20 @@ def generate_image(ws, base_workflow, positive_prompt, negative_prompt, width=10
     seed=random.randint(0, 2**32 - 1)
     print(f"Seeded with: {seed}")
     workflow["19"]["inputs"]["seed"] = seed
+    workflow["19"]["inputs"]["steps"] = KSAMPLER_STEPS
+    workflow["19"]["inputs"]["cfg"] = KSAMPLER_CFG
+    workflow["19"]["inputs"]["sampler_name"] = KSAMPLER_SAMPLER_NAME
+    workflow["19"]["inputs"]["scheduler"] = KSAMPLER_SCHEDULER
+    workflow["19"]["inputs"]["denoise"] = KSAMPLER_DENOISE
+    
     workflow["28"]["inputs"]["width"] = width
     workflow["28"]["inputs"]["height"] = height
+    
+    workflow["44"]["inputs"]["unet_name"] = MODEL_UNET_NAME
+    workflow["15"]["inputs"]["vae_name"] = MODEL_VAE_NAME
+    workflow["45"]["inputs"]["clip_name"] = MODEL_CLIP_NAME
+    
+    workflow["46"]["inputs"]["filename_prefix"] = output_prefix
     
     return get_images(ws, workflow)
 
@@ -132,7 +168,7 @@ def run_pipeline(jobs_filepath):
 
     # 3. Connect to WebSocket
     ws = websocket.WebSocket()
-    ws.connect(f"ws://{server_address}/ws?clientId={client_id}")
+    ws.connect(f"ws://{SERVER_ADDRESS}/ws?clientId={CLIENT_ID}")
 
     # 4. Execute pipeline sequentially
     for i, job in enumerate(jobs, 1):
@@ -147,6 +183,10 @@ def run_pipeline(jobs_filepath):
         
         print(f"\n--- Starting Job {i}/{len(jobs)} ---")
         
+        # Determine filename prefix
+        character_name = job.get("character", "").strip()
+        filename_prefix = character_name if character_name else DEFAULT_OUTPUT_FILENAME_PREFIX
+
         # Filter kwargs to prevent TypeError if extra columns exist in the CSV/JSON
         valid_keys = {"subject", "character", "series", "artist", "general_tags", "natural_language"}
         prompt_kwargs = {k: v for k, v in job.items() if k in valid_keys}
@@ -159,11 +199,11 @@ def run_pipeline(jobs_filepath):
         
         for img_idx in range(num_images):
             print(f"  -> Queuing image {img_idx + 1}/{num_images} for job {i}...")
-            images = generate_image(ws, base_workflow, pos_prompt, neg_prompt)
+            images = generate_image(ws, base_workflow, pos_prompt, neg_prompt, output_prefix=filename_prefix)
             
             for image in images:
                 print(f"     Success! Image saved as: {image['filename']}")
-                print(f"     Download URL: http://{server_address}/view?filename={image['filename']}&type=output")
+                print(f"     Download URL: http://{SERVER_ADDRESS}/view?filename={image['filename']}&type=output")
     
     ws.close()
     print("\nPipeline finished.")
