@@ -1,14 +1,15 @@
 {
   "DYNAMIC_TEMPLATES": [
-    "Create a STYLE a CHARACTER in PLACE in POSE VIEWPOINT. SETTING. CHARPROP. Accessories she has: ACCESSORIES. Horny aroused cute expression"
+    "1girl, CHARACTER, @ARTIST, STYLE, VIEWPOINT, SETTING. A digital artwork of CHARACTER in PLACE. She is POSE, wearing CHARPROP and ACCESSORIES.",
+    "1girl, CHARACTER, @ARTIST, STYLE, VIEWPOINT, SETTING. An illustration of CHARACTER in PLACE. She is POSE, dressed in CHARPROP with ACCESSORIES."
   ],
   "DYNAMIC_DICTIONARY": {
-    "STYLE": ["anime hyper-detailed image of"],
-    "VIEWPOINT": [
-      "low angle shot, looking up at her vulnerability",
-      "extreme close-up on her body",
-      "dutch angle capturing her body",
-      "over-the-shoulder view from the aggressor's perspective"
+    "ARTIST": ["wlop", "torino akua", "mika pikazo", "ask", "kyouta"],
+    "STYLE": [
+      "anime screenshot, absurdres",
+      "official art, highly detailed",
+      "digital painting, intricate details",
+      "concept art, sharp focus"
     ],
     "CHARACTER": [
       "Rem (Re:Zero)",
