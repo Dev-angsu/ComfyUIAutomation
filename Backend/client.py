@@ -1,6 +1,9 @@
 import json
 import requests
+import logging
 from config import SERVER_ADDRESS, CLIENT_ID
+
+logger = logging.getLogger(__name__)
 
 def queue_prompt(prompt):
     p = {"prompt": prompt, "client_id": CLIENT_ID}
@@ -10,7 +13,7 @@ def queue_prompt(prompt):
 
 def get_images(ws, prompt):
     prompt_id = queue_prompt(prompt)['prompt_id']
-    print(f"Queued prompt ID: {prompt_id}")
+    logger.info(f"Queued prompt ID: {prompt_id}")
     
     while True:
         out = ws.recv()
@@ -28,12 +31,12 @@ def get_images(ws, prompt):
     history_res = requests.get(f"http://{SERVER_ADDRESS}/history/{prompt_id}").json()
     
     if prompt_id not in history_res:
-        print(f"Error: Prompt {prompt_id} not found in history. It might have crashed.")
+        logger.error(f"Prompt {prompt_id} not found in history. It might have crashed.")
         return []
 
     history = history_res[prompt_id]
     if 'outputs' in history and '46' in history['outputs']:
         return history['outputs']['46']['images']
     else:
-        print("Warning: Node 46 did not produce any output. Check ComfyUI console for errors.")
+        logger.warning("Node 46 did not produce any output. Check ComfyUI console for errors.")
         return []

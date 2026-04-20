@@ -18,8 +18,16 @@ venv.bak/
 # Environments
 .env
 
+# Packaging / Build Artifacts
+*.egg-info/
+
 # Pytest
 .pytest_cache/
+
+# PyInstaller
+build/
+dist/
+*.spec
 
 # =========================
 # Next.js / Node.js
@@ -45,3 +53,6 @@ yarn-error.log*
 
 # OS generated files
 .DS_Store
+
+#log files
+*.log

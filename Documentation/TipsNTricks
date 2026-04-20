@@ -1,0 +1,149 @@
+To update your requirements.txt file after installing new packages, the standard Python approach is to use the pip freeze command. This command lists all the packages currently installed in your active virtual environment along with their exact version numbers.
+
+Here is how you do it:
+
+Make sure your virtual environment is activated (you should see (venv) in your terminal).
+Navigate to your Backend folder where the requirements.txt lives.
+Run the following command:
+bash
+pip freeze > requirements.txt
+This will overwrite the requirements.txt file with a complete, up-to-date list of everything installed in your environment.
+
+A quick tip for your specific setup: Since you created a setup.py file to turn your project into a CLI package, you should also manually add any new core packages to the install_requires list inside c:\Users\Debus\OneDrive\Desktop\ComfyUIAutomation\Backend\setup.py. This ensures that if you ever install the CLI on a different machine using pip install -e ., it knows to grab the new dependencies!
+
+//
+
+Yes, absolutely! I know exactly what you mean. You want to compile your entire Python application into a single .exe file so you can drop it anywhere (or share it) and run it without needing to install Python, set up virtual environments, or use pip.
+
+To do this, we will use PyInstaller. It bundles your Python scripts and all your installed libraries (requests, websocket-client) into one neat executable.
+
+Here is exactly how to do it:
+
+1. Install PyInstaller
+   Make sure your virtual environment is still activated ((venv) should be visible in your terminal), and run:
+
+bash
+pip install pyinstaller 2. Build the Executable
+Navigate to your Backend folder in the terminal and run this command:
+
+bash
+pyinstaller --onefile --name comfy-auto app.py
+The --onefile flag tells it to bundle everything into a single .exe file.
+The --name comfy-auto flag sets the output file name to comfy-auto.exe.
+app.py is the entry point it will start from. 3. Find your .exe
+Once the process finishes, PyInstaller will have created a few new folders (build and dist) and a .spec file. You will find your ready-to-use standalone executable inside the dist folder: c:\Users\Debus\OneDrive\Desktop\ComfyUIAutomation\Backend\dist\comfy-auto.exe
+
+You can now move comfy-auto.exe anywhere on your computer. To run it, open a terminal in the folder where you placed it and run:
+
+bash
+comfy-auto.exe --mode jobs --jobs jobs.csv
+(Important Note: Because your pipeline.py currently looks for example.json using a hardcoded local path, make sure example.json is in the same folder as your .exe when you run it!)
+
+//
+
+To create a Python virtual environment, it is best practice to place it in the directory where your Python project lives. Based on your file paths, the best place is inside your Backend folder, as that is where your requirements.txt and setup.py files are located. Your .gitignore is already set up to ignore it so it won't be accidentally committed to source control.
+
+Here are the step-by-step instructions to create and set up your virtual environment on Windows:
+
+1. Open your terminal and navigate to the Backend folder
+   Open Command Prompt, PowerShell, or your IDE's terminal and run:
+
+bash
+cd c:\Users\Debus\OneDrive\Desktop\ComfyUIAutomation\Backend 2. Create the virtual environment
+Run the following command. The venv at the end is the name of the folder that will be created to hold your isolated Python environment.
+
+bash
+python -m venv venv 3. Activate the virtual environment
+Whenever you want to work on this project or run your scripts, you need to activate the environment first.
+
+If you are using Command Prompt:
+
+cmd
+venv\Scripts\activate.bat
+If you are using PowerShell:
+
+powershell
+venv\Scripts\Activate.ps1
+(Note: If you get a Permissions/Execution Policy error in PowerShell, run Set-ExecutionPolicy Unrestricted -Scope CurrentUser first, then try activating again.)
+
+Once activated, you should see (venv) appear at the beginning of your terminal prompt.
+
+4. Install your project dependencies
+   Now that you are inside the isolated environment, you can install the required packages. Since you have both a requirements.txt and a setup.py (which creates the comfy-auto CLI), you can install everything in editable mode by running:
+
+bash
+pip install -e .
+(This command looks at your setup.py and installs the required requests and websocket-client packages automatically, while also linking your CLI command).
+
+Alternatively, if you just want to install from the requirements file without setting up the CLI, you can run:
+
+bash
+pip install -r requirements.txt
+Whenever you are done working, you can exit the virtual environment by simply typing:
+
+bash
+deactivate
+
+//
+
+To turn your Python script into a fully-fledged CLI command (like comfy-auto), the industry-standard approach in Python is to use setuptools and define an entry point. This creates an executable command in your Python environment that you can run from anywhere without needing to type python app.py.
+
+To do this, we need to do two things:
+
+Wrap the execution logic in app.py inside a main() function so it can be imported and executed by the CLI wrapper.
+Create a setup.py file that tells Python to create the CLI command.
+Here are the diffs to make this happen:
+
+1. Update app.py
+   We will move the argument parsing into a main() function.
+
+app.py
+-1
++4
+)
+logger = logging.getLogger(**name**)
+
+if **name** == "**main**":
+def main():
+parser = argparse.ArgumentParser(description="Run ComfyUI Automated Image Generation Pipeline")
+parser.add_argument("--mode", type=str, choices=["jobs", "dynamic"], default="jobs",
+help="Select 'jobs' to run from a file, or 'dynamic' for randomized template prompts")
+run_dynamic_pipeline(args.count, args.dict)
+except Exception as e:
+logger.error(f"Pipeline failed: {e}")
+
+if **name** == "**main**":
+main() 2. Create setup.py
+This file acts as the configuration for your package. It tells Python to create a console script named comfy-auto that points directly to the main function in app.py.
+
+New file: setup.py
++16
+from setuptools import setup
+
+setup(
+name="comfy-auto",
+version="0.1.0",
+py_modules=["app", "client", "config", "pipeline", "prompts"],
+entry_points={
+"console_scripts": [
+"comfy-auto=app:main",
+],
+},
+install_requires=[
+"requests",
+"websocket-client",
+],
+) 3. Install the CLI
+Open your terminal, navigate to your Backend folder, and run the following command (make sure your virtual environment is activated if you are using one):
+
+bash
+pip install -e .
+(The -e flag stands for "editable", meaning any changes you make to your Python files will instantly apply to the CLI tool without needing to reinstall it.)
+
+4. Use your new CLI!
+   Now, instead of navigating to the folder and typing python app.py, you can run your pipeline from anywhere using your new command:
+
+bash
+comfy-auto --mode jobs --jobs ../Jobs/jobs.csv
+bash
+comfy-auto --mode dynamic --count 10 --dict ../Jobs/demodictionary.json

@@ -1,7 +1,18 @@
 import argparse
+import logging
 from pipeline import run_pipeline, run_dynamic_pipeline
 
-if __name__ == "__main__":
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.FileHandler("pipeline.log", encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+def main():
     parser = argparse.ArgumentParser(description="Run ComfyUI Automated Image Generation Pipeline")
     parser.add_argument("--mode", type=str, choices=["jobs", "dynamic"], default="jobs", 
                         help="Select 'jobs' to run from a file, or 'dynamic' for randomized template prompts")
@@ -16,4 +27,7 @@ if __name__ == "__main__":
         elif args.mode == "dynamic":
             run_dynamic_pipeline(args.count, args.dict)
     except Exception as e:
-        print(f"Pipeline failed: {e}")
+        logger.error(f"Pipeline failed: {e}")
+
+if __name__ == "__main__":
+    main()

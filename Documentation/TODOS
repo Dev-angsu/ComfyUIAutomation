@@ -1,0 +1,7 @@
+Concepts for Managing it as a Processing Layer
+If you're aiming to take this proof-of-concept into a production-level processing pipeline, here are a few industry-standard approaches to apply next:
+
+Message Brokers & Task Queues (e.g. Celery + Redis / RabbitMQ) Instead of using a synchronous for loop, you'd deploy your image generation function as a worker process. The CLI (or an API web-server) pushes generation instructions to the queue, and multiple workers listen and pull jobs individually. This automatically gives you concurrency and distributed workloads.
+State Management via Database (PostgreSQL / SQLite) You currently rely on CLI output to see job successes or failures. A mature layer involves using an ORM like SQLAlchemy to store jobs as database rows (status="PENDING"). When a worker completes the generation, it updates the row to COMPLETED and attaches the image filename/S3 URL.
+Fault Tolerance and Retries Right now, an unexpected WebSocket disconnect kills the whole linear pipeline. With a queueing layer, the task fails gracefully, re-enters the queue, and gets retried with exponential back-off strategies, isolating bad jobs from good ones.
+Cloud Storage Layer Integration Rather than storing outputs in a local ComfyUI folder, standard pipelines implement an automatic post-processing step (e.g., boto3 in Python) that uploads the generated images to an S3 bucket or Google Cloud Storage and returns a presigned download URL instead.
