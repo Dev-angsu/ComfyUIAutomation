@@ -96,6 +96,7 @@ def run_pipeline(jobs_filepath):
             neg_prompt = build_negative_prompt()
             
             logger.info(f"Positive Prompt: {pos_prompt}")
+            logger.info(f"Negative Prompt: {neg_prompt}")
             logger.info(f"Generating {num_images} image(s) for job {i}...")
             
             for img_idx in range(num_images):

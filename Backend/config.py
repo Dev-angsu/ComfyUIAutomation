@@ -8,7 +8,7 @@ CLIENT_ID = str(uuid.uuid4())
 
 # Prompt Defaults
 DEFAULT_POSITIVE_PREFIX = ["masterpiece", "best quality", "score_7", "highres", "year 2025", "newest"]
-DEFAULT_NEGATIVE_PROMPT = "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia"
+DEFAULT_NEGATIVE_PROMPT = "worst quality, low quality, score_1, score_2, score_3, blurry, jpeg artifacts, sepia,long neck, out of frame, extra fingers, mutated hands, monochrome, bad anatomy, watermark, missing limbs, disfigured, ugly"
 
 # Generation Defaults
 DEFAULT_WIDTH = 1024
