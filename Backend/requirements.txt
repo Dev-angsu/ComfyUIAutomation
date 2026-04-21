@@ -1,3 +1,30 @@
+# AI Studio — FastAPI Backend Dependencies
+
+# Web Framework
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+
+# HTTP client (async — replaces 'requests')
+httpx>=0.27.0
+
+# WebSocket client (for connecting TO ComfyUI)
+websockets>=12.0
+
+# Data validation & settings
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# File upload support
+python-multipart>=0.0.9
+
+# Async file I/O
+aiofiles>=23.0.0
+
+# Python 3.9 compatibility — allows newer typing syntax (X | Y, list[str], etc.)
+eval_type_backport>=0.2.0
+
+# Legacy CLI deps (kept for backward compat)
+websocket-client>=1.7.0
+
 requests
-websocket-client
-pyinstaller
+#pyinstaller
