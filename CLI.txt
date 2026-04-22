@@ -1,3 +1,7 @@
 python app.py --mode jobs --jobs ../Jobs/jobs.csv
 
 python app.py --mode dynamic --count 10 --dict ../Jobs/demodictionary.json
+
+python cli.py --mode jobs --jobs ../Jobs/frieren.csv
+
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000

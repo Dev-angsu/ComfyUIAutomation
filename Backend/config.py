@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     )
 
     # ── ComfyUI Connection ─────────────────────────────────────────────────
-    comfy_server: str = "192.168.101.15:8188"
+    comfy_server: str = "127.0.0.1:8188"
     # SaveImage node ID in the base workflow JSON
     comfy_output_node_id: str = "46"
     # Unique client ID for WebSocket identification — generated fresh each restart
