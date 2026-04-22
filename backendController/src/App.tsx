@@ -172,30 +172,30 @@ export default function App() {
 
         {/* Scrollable Page Content */}
         <main className="flex-1 overflow-y-auto p-8">
-          {activeTab === "studio" && (
-            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-8 flex flex-col gap-6">
-                <ManualGenerator />
-                <BatchUploader />
-                <DynamicPipelineUploader />
-              </div>
-              <div className="lg:col-span-4 flex flex-col gap-6">
-                <QueueMonitor />
-              </div>
+          <div
+            className={`max-w-7xl mx-auto gap-8 ${activeTab === "studio" ? "grid grid-cols-1 lg:grid-cols-12" : "hidden"}`}
+          >
+            <div className="lg:col-span-8 flex flex-col gap-6">
+              <ManualGenerator />
+              <BatchUploader />
+              <DynamicPipelineUploader />
             </div>
-          )}
+            <div className="lg:col-span-4 flex flex-col gap-6">
+              <QueueMonitor />
+            </div>
+          </div>
 
-          {activeTab === "tasks" && (
-            <div className="max-w-7xl mx-auto flex flex-col gap-6">
-              <TaskList />
-            </div>
-          )}
+          <div
+            className={`max-w-7xl mx-auto flex-col gap-6 ${activeTab === "tasks" ? "flex" : "hidden"}`}
+          >
+            <TaskList />
+          </div>
 
-          {activeTab === "gallery" && (
-            <div className="max-w-7xl mx-auto flex flex-col gap-6">
-              <Gallery />
-            </div>
-          )}
+          <div
+            className={`max-w-7xl mx-auto flex-col gap-6 ${activeTab === "gallery" ? "flex" : "hidden"}`}
+          >
+            <Gallery />
+          </div>
         </main>
       </div>
     </div>

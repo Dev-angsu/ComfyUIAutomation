@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 
 const API_ROOT = "http://localhost:8000"; // Assuming backend serves images at the root or /outputs route
 
@@ -8,6 +8,10 @@ export const Gallery: React.FC = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 24; // Divisible by 2, 3, 4, and 6 for cleaner CSS grid rows
+
+  // Cache busting tracking
+  const seenUrls = useRef<Record<string, number>>({});
+  const lastTotal = useRef<number>(0);
 
   useEffect(() => {
     const fetchGallery = async () => {
@@ -22,6 +26,12 @@ export const Gallery: React.FC = () => {
         setImages(data.images || []);
 
         if (data.total !== undefined) {
+          // Detect history reset to bust cache for overlapping filenames
+          if (data.total < lastTotal.current) {
+            seenUrls.current = {};
+          }
+          lastTotal.current = data.total;
+
           setTotalPages(Math.ceil(data.total / pageSize) || 1);
         }
       } catch (err) {
@@ -41,8 +51,16 @@ export const Gallery: React.FC = () => {
   const getImageUrl = (img: any) => {
     const path = img.url || img.file_path || "";
     if (!path) return "";
-    if (path.startsWith("http")) return path;
-    return `${API_ROOT}${path.startsWith("/") ? "" : "/"}${path}`;
+    const baseUrl = path.startsWith("http")
+      ? path
+      : `${API_ROOT}${path.startsWith("/") ? "" : "/"}${path}`;
+
+    // Track first-seen timestamp to bust disk cache without causing infinite React render flickering
+    if (!seenUrls.current[baseUrl]) {
+      seenUrls.current[baseUrl] = Date.now();
+    }
+    const separator = baseUrl.includes("?") ? "&" : "?";
+    return `${baseUrl}${separator}cb=${seenUrls.current[baseUrl]}`;
   };
 
   return (
@@ -54,22 +72,12 @@ export const Gallery: React.FC = () => {
           </div>
         ) : (
           images.map((img, idx) => (
-            <div
+            <ImageCard
               key={idx}
-              className="aspect-square relative group overflow-hidden rounded-xl bg-zinc-900 border border-zinc-800 cursor-pointer"
+              img={img}
+              getImageUrl={getImageUrl}
               onClick={() => setSelectedImage(img)}
-            >
-              <img
-                src={getImageUrl(img)}
-                alt={img.prompt || "Generated Image"}
-                className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-colors duration-300 flex items-end opacity-0 group-hover:opacity-100 p-3">
-                <span className="text-xs text-white truncate">
-                  {img.prompt || "View Image"}
-                </span>
-              </div>
-            </div>
+            />
           ))
         )}
       </div>
@@ -105,11 +113,56 @@ export const Gallery: React.FC = () => {
             <img
               src={getImageUrl(selectedImage)}
               alt="Fullscreen view"
-              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl border border-white/10"
+              onLoad={(e) => {
+                e.currentTarget.classList.remove("opacity-0", "scale-95");
+                e.currentTarget.classList.add("opacity-100", "scale-100");
+              }}
+              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl border border-white/10 opacity-0 scale-95 transition-all duration-500 ease-out"
             />
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const ImageCard = ({
+  img,
+  getImageUrl,
+  onClick,
+}: {
+  img: any;
+  getImageUrl: (img: any) => string;
+  onClick: () => void;
+}) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const url = getImageUrl(img);
+
+  // Reset loaded state if the image URL changes (e.g., during pagination)
+  useEffect(() => {
+    setIsLoaded(false);
+  }, [url]);
+
+  return (
+    <div
+      className="aspect-square relative group overflow-hidden rounded-xl bg-zinc-900 border border-zinc-800 cursor-pointer"
+      onClick={onClick}
+    >
+      <img
+        src={url}
+        alt={img.prompt || "Generated Image"}
+        onLoad={() => setIsLoaded(true)}
+        className={`object-cover w-full h-full transition-all duration-700 ease-out ${
+          isLoaded
+            ? "opacity-100 blur-0 group-hover:scale-105"
+            : "opacity-0 blur-md scale-105"
+        }`}
+      />
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-colors duration-300 flex items-end opacity-0 group-hover:opacity-100 p-3">
+        <span className="text-xs text-white truncate">
+          {img.prompt || "View Image"}
+        </span>
+      </div>
     </div>
   );
 };

@@ -86,8 +86,13 @@ export const TaskList: React.FC = () => {
     searchForImage(task);
 
     if (!foundPath) return "";
-    if (foundPath.startsWith("http")) return foundPath;
-    return `http://localhost:8000${foundPath.startsWith("/") ? "" : "/"}${foundPath}`;
+    const baseUrl = foundPath.startsWith("http")
+      ? foundPath
+      : `http://localhost:8000${foundPath.startsWith("/") ? "" : "/"}${foundPath}`;
+
+    // Use the unique task.id to bypass disk cache for identically named files
+    const separator = baseUrl.includes("?") ? "&" : "?";
+    return `${baseUrl}${separator}cb=${task.id}`;
   };
 
   // Pagination logic
@@ -324,7 +329,14 @@ export const TaskList: React.FC = () => {
                     <img
                       src={getTaskImageUrl(selectedTask)}
                       alt="Generated Output"
-                      className="w-full max-h-80 object-contain rounded border border-zinc-800 bg-black/30 mt-2"
+                      onLoad={(e) => {
+                        e.currentTarget.classList.remove(
+                          "opacity-0",
+                          "blur-sm",
+                        );
+                        e.currentTarget.classList.add("opacity-100", "blur-0");
+                      }}
+                      className="w-full max-h-80 object-contain rounded border border-zinc-800 bg-black/30 mt-2 opacity-0 blur-sm transition-all duration-500 ease-out"
                     />
                   ) : (
                     <div className="bg-black/30 p-3 rounded border border-zinc-800 font-mono text-xs text-zinc-500">
