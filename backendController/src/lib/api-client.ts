@@ -94,4 +94,13 @@ export const apiClient = {
     if (!response.ok) throw new Error("Failed to queue JSON batch");
     return response.json();
   },
+
+  async getGallery() {
+    const response = await fetch(`${API_BASE}/gallery`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw new Error("Failed to fetch gallery");
+    return response.json();
+  },
 };

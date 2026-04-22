@@ -5,3 +5,19 @@ Message Brokers & Task Queues (e.g. Celery + Redis / RabbitMQ) Instead of using 
 State Management via Database (PostgreSQL / SQLite) You currently rely on CLI output to see job successes or failures. A mature layer involves using an ORM like SQLAlchemy to store jobs as database rows (status="PENDING"). When a worker completes the generation, it updates the row to COMPLETED and attaches the image filename/S3 URL.
 Fault Tolerance and Retries Right now, an unexpected WebSocket disconnect kills the whole linear pipeline. With a queueing layer, the task fails gracefully, re-enters the queue, and gets retried with exponential back-off strategies, isolating bad jobs from good ones.
 Cloud Storage Layer Integration Rather than storing outputs in a local ComfyUI folder, standard pipelines implement an automatic post-processing step (e.g., boto3 in Python) that uploads the generated images to an S3 bucket or Google Cloud Storage and returns a presigned download URL instead.
+
+Add a navigation pane on the left. Make the app page based. Add the Recent task on a new page that can be navigated from the navigation pane.
+
+How can we implement React Router DOM to make these tabs accessible via dedicated URL routes?
+
+Can we build a visual Prompt Builder component now that uses our backend dictionaries?
+
+Implement infinite scroll on the Image Gallary so that we dont load the entire gallary at the same time, load as much is scrolled.
+
+How can we implement a toast notification in the TaskList when a task finishes successfully?
+
+Can we add an indicator that shows a loading spinner state while switching gallery pages?
+
+Is there a way to update `api-client.ts` to natively support the gallery query parameters instead of bypassing it?
+
+Add an indicator that shows a loading spinner state whenever anything is being loaded in the entire frontend app - make this a global feature?

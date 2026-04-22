@@ -70,7 +70,10 @@ async def get_gallery(
             all_images.append(_make_image_info(img))
 
     # Sort newest-first (ComfyUI prefixes filenames with sequential counters)
-    all_images.sort(key=lambda x: x.filename, reverse=True)
+    # all_images.sort(key=lambda x: x.filename, reverse=True)
+
+    # Reverse list for newest-first (ComfyUI history insertion order natively represents chronological order)
+    all_images.reverse()
 
     total = len(all_images)
     start = (page - 1) * page_size
