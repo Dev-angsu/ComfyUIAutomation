@@ -19,7 +19,7 @@ export default function App() {
         // Hitting the gallery endpoint is a great health check because FastAPI
         // will return 502 if it can't reach ComfyUI on port 8188.
         const response = await fetch(
-          "http://localhost:8000/api/gallery?page=1&page_size=1",
+          `http://${window.location.hostname}:8000/api/gallery?page=1&page_size=1`,
         );
         if (response.ok) {
           setIsBackendReady(true);

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 
-const API_ROOT = "http://localhost:8000"; // Assuming backend serves images at the root or /outputs route
+const API_ROOT = `http://${window.location.hostname}:8000`; // Dynamically use the correct host
 
 export const Gallery: React.FC = () => {
   const [images, setImages] = useState<any[]>([]);

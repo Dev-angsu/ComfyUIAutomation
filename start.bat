@@ -27,12 +27,22 @@ if %errorlevel% neq 0 (
 echo ComfyUI is online!
 echo.
 
-:: Start FastAPI Backend in a new window
+:: Kill existing process on Port 8000 and Start FastAPI Backend
+echo Checking for existing FastAPI Backend on Port 8000...
+FOR /F "tokens=5" %%a in ('netstat -aon ^| findstr /C:":8000 " ^| findstr LISTENING') do (
+    echo Killing existing process on Port 8000 [PID: %%a]...
+    taskkill /F /PID %%a >nul 2>&1
+)
 echo Starting FastAPI Backend (Port 8000)...
 start "AI Studio Backend" cmd /k "cd Backend && python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
 
-:: Start Next.js Frontend in a new window
+:: Kill existing process on Port 3000 and Start Next.js Frontend
+echo Checking for existing Next.js Frontend on Port 3000...
+FOR /F "tokens=5" %%a in ('netstat -aon ^| findstr /C:":3000 " ^| findstr LISTENING') do (
+    echo Killing existing process on Port 3000 [PID: %%a]...
+    taskkill /F /PID %%a >nul 2>&1
+)
 echo Starting Next.js Frontend (Port 3000)...
-start "AI Studio Frontend" cmd /k "cd backendController && npm run dev"
+start "AI Studio Frontend" cmd /k "cd backendController && npm run dev -- --host --open"
 
 echo Done! Both services are launching in separate windows.

@@ -20,10 +20,18 @@ done
 # Capture the absolute path to this script's directory
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-echo "Starting FastAPI Backend (Port 8000)..."
-osascript -e 'tell application "Terminal" to do script "cd \"'"$DIR"'/Backend\" && python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload"'
+if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null; then
+    echo "✅ FastAPI Backend is already running on Port 8000. Skipping..."
+else
+    echo "Starting FastAPI Backend (Port 8000)..."
+    osascript -e 'tell application "Terminal" to do script "cd \"'"$DIR"'/Backend\" && python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload"'
+fi
 
-echo "Starting Next.js Frontend (Port 3000)..."
-osascript -e 'tell application "Terminal" to do script "cd \"'"$DIR"'/backendController\" && npm run dev"'
+if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null; then
+    echo "✅ Next.js Frontend is already running on Port 3000. Skipping..."
+else
+    echo "Starting Next.js Frontend (Port 3000)..."
+    osascript -e 'tell application "Terminal" to do script "cd \"'"$DIR"'/backendController\" && npm run dev -- --host --open"'
+fi
 
-echo "Done! Both services are launching in separate Terminal windows."
+echo "Done! Environment startup check complete."

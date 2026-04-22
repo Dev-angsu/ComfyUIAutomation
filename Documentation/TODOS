@@ -21,3 +21,7 @@ Can we add an indicator that shows a loading spinner state while switching galle
 Is there a way to update `api-client.ts` to natively support the gallery query parameters instead of bypassing it?
 
 Add an indicator that shows a loading spinner state whenever anything is being loaded in the entire frontend app - make this a global feature?
+
+Add the functionality to delete presently added queue items, both in the UI and in the python backend
+Can we add a "Clear Entire Queue" button that deletes all QUEUED tasks at once?
+The delete button or clear queue isnt working?
