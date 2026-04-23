@@ -42,8 +42,8 @@ class GenerationParams(BaseModel):
     Shared generation parameters for all job types.
     All fields are optional — callers can override only what they need.
     """
-    width: int = Field(default=1024, ge=64, le=2048, description="Image width in pixels")
-    height: int = Field(default=1024, ge=64, le=2048, description="Image height in pixels")
+    width: Optional[int] = Field(default=None, ge=64, le=4096, description="Image width in pixels")
+    height: Optional[int] = Field(default=None, ge=64, le=4096, description="Image height in pixels")
     batch_count: int = Field(default=1, ge=1, le=8, description="Number of images per job")
     seed: Optional[int] = Field(default=None, description="Specific seed (-1 = random)")
     steps: Optional[int] = Field(default=None, ge=1, le=150)
@@ -150,6 +150,20 @@ class DictionariesResponse(BaseModel):
     """Full dictionary data for populating UI dropdowns."""
     categories: dict[str, list[str]]  # e.g. {"ARTIST": ["wlop", ...], "CHARACTER": [...]}
     templates: list[str]
+
+
+class AppSettings(BaseModel):
+    """Global application settings and defaults."""
+    default_width: int
+    default_height: int
+    ksampler_steps: int
+    ksampler_cfg: float
+    ksampler_sampler_name: str
+    ksampler_scheduler: str
+    ksampler_denoise: float
+    default_unet: str
+    default_vae: str
+    default_clip: str
 
 
 class ModelList(BaseModel):

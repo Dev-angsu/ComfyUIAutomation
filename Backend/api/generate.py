@@ -26,6 +26,7 @@ from adapters.job_parsers import JobLoader
 from config import settings
 from core.prompt_engine import build_negative_prompt, build_positive_prompt, build_dynamic_prompt
 from models.schemas import (
+    AppSettings,
     BatchEnqueuedResponse,
     BatchStatusResponse,
     BatchType,
@@ -424,3 +425,27 @@ async def get_batch_status(batch_id: str) -> BatchStatusResponse:
 @router.get("/batches", summary="List all batches")
 async def list_batches() -> dict:
     return {"batches": batch_store.get_all_batches()}
+
+
+@router.get(
+    "/config",
+    response_model=AppSettings,
+    summary="Get default application settings",
+)
+async def get_app_config() -> AppSettings:
+    """
+    Returns the current defaults from config.py (or .env).
+    The frontend uses this to initialize its global state.
+    """
+    return AppSettings(
+        default_width=settings.default_width,
+        default_height=settings.default_height,
+        ksampler_steps=settings.ksampler_steps,
+        ksampler_cfg=settings.ksampler_cfg,
+        ksampler_sampler_name=settings.ksampler_sampler_name,
+        ksampler_scheduler=settings.ksampler_scheduler,
+        ksampler_denoise=settings.ksampler_denoise,
+        default_unet=settings.default_unet,
+        default_vae=settings.default_vae,
+        default_clip=settings.default_clip,
+    )

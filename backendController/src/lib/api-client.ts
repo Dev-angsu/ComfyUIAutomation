@@ -4,6 +4,26 @@ export interface GenerationParams {
   width?: number;
   height?: number;
   steps?: number;
+  cfg?: number;
+  sampler_name?: string;
+  scheduler?: string;
+  denoise?: number;
+  unet?: string;
+  vae?: string;
+  clip?: string;
+}
+
+export interface AppConfig {
+  default_width: number;
+  default_height: number;
+  ksampler_steps: number;
+  ksampler_cfg: number;
+  ksampler_sampler_name: string;
+  ksampler_scheduler: string;
+  ksampler_denoise: number;
+  default_unet: string;
+  default_vae: string;
+  default_clip: string;
 }
 
 export interface GenerationRequest {
@@ -50,9 +70,12 @@ export const apiClient = {
     return response.json();
   },
 
-  async uploadCSVBatch(file: File) {
+  async uploadCSVBatch(file: File, params?: GenerationParams) {
     const formData = new FormData();
     formData.append("file", file);
+    if (params) {
+      formData.append("global_params_json", JSON.stringify(params));
+    }
 
     const response = await fetch(`${API_BASE}/batch/csv/upload`, {
       method: "POST",
@@ -72,12 +95,15 @@ export const apiClient = {
     return response.json();
   },
 
-  async uploadJSONBatch(file: File, count: number = 1) {
+  async uploadJSONBatch(file: File, params?: GenerationParams) {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("count", count.toString());
+    if (params) {
+      formData.append("global_params_json", JSON.stringify(params));
+    }
 
-    const response = await fetch(`${API_BASE}/batch/json/upload`, {
+    // The csv/upload endpoint handles both .csv and .json via JobLoader
+    const response = await fetch(`${API_BASE}/batch/csv/upload`, {
       method: "POST",
       body: formData,
     });
@@ -101,6 +127,15 @@ export const apiClient = {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) throw new Error("Failed to fetch gallery");
+    return response.json();
+  },
+
+  async getConfig(): Promise<AppConfig> {
+    const response = await fetch(`${API_BASE}/config`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw new Error("Failed to fetch app config");
     return response.json();
   },
 };

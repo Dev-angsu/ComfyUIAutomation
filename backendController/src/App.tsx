@@ -5,6 +5,8 @@ import { TaskList } from "./components/TaskList";
 import { BatchUploader } from "./components/BatchUploader";
 import { DynamicPipelineUploader } from "./components/DynamicPipelineUploader";
 import { Gallery } from "./components/Gallery";
+import { SettingsProvider } from "./lib/settings-context";
+import { GenerationSettings } from "./components/GenerationSettings";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<"studio" | "tasks" | "gallery">(
@@ -58,7 +60,8 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-zinc-950 text-zinc-200 font-sans selection:bg-indigo-500/30 overflow-hidden">
+    <SettingsProvider>
+      <div className="flex h-screen bg-zinc-950 text-zinc-200 font-sans selection:bg-indigo-500/30 overflow-hidden">
       {/* Left Navigation Pane */}
       <aside className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col shrink-0 z-20">
         <div className="h-16 flex items-center px-6 border-b border-zinc-800">
@@ -181,6 +184,7 @@ export default function App() {
               <DynamicPipelineUploader />
             </div>
             <div className="lg:col-span-4 flex flex-col gap-6">
+              <GenerationSettings />
               <QueueMonitor />
             </div>
           </div>
@@ -199,5 +203,6 @@ export default function App() {
         </main>
       </div>
     </div>
+    </SettingsProvider>
   );
 }

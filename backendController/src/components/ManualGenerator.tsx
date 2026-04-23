@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { apiClient } from "../lib/api-client";
+import { useSettings } from "../lib/settings-context";
 
 export const ManualGenerator: React.FC = () => {
   const [prompt, setPrompt] = useState(
@@ -8,8 +9,7 @@ export const ManualGenerator: React.FC = () => {
   const [negative, setNegative] = useState(
     "worst quality, low quality, bad anatomy",
   );
-  const [width, setWidth] = useState(1024);
-  const [height, setHeight] = useState(1024);
+  const { settings } = useSettings();
   const [loading, setLoading] = useState(false);
   const [lastTask, setLastTask] = useState<string | null>(null);
 
@@ -20,7 +20,11 @@ export const ManualGenerator: React.FC = () => {
       const res = await apiClient.generateSingle({
         positive_prompt: prompt,
         negative_prompt: negative,
-        params: { width, height, steps: 30 },
+        params: { 
+          width: settings.width, 
+          height: settings.height, 
+          steps: settings.steps 
+        },
       });
       setLastTask(res.task_id);
     } catch (err) {
@@ -66,31 +70,6 @@ export const ManualGenerator: React.FC = () => {
           value={negative}
           onChange={(e) => setNegative(e.target.value)}
         />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-            Width
-          </label>
-          <input
-            type="number"
-            className="bg-black/40 border border-zinc-800 rounded-lg p-2.5 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500/50"
-            value={width}
-            onChange={(e) => setWidth(Number(e.target.value))}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-            Height
-          </label>
-          <input
-            type="number"
-            className="bg-black/40 border border-zinc-800 rounded-lg p-2.5 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500/50"
-            value={height}
-            onChange={(e) => setHeight(Number(e.target.value))}
-          />
-        </div>
       </div>
 
       <div className="pt-2 flex items-center justify-between">
