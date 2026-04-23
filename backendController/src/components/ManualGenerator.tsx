@@ -23,7 +23,8 @@ export const ManualGenerator: React.FC = () => {
         params: { 
           width: settings.width, 
           height: settings.height, 
-          steps: settings.steps 
+          steps: settings.steps,
+          workflow: settings.workflow 
         },
       });
       setLastTask(res.task_id);

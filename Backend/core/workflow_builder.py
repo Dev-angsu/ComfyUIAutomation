@@ -31,8 +31,9 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-# Default base workflow path — example.json sits in the Backend/ root
-_BASE_WORKFLOW_PATH = Path(__file__).parent.parent / "example.json"
+# Default base workflow path — anima.json sits in the Backend/workflows dir
+_WORKFLOWS_DIR = Path(__file__).parent.parent / "workflows"
+_DEFAULT_WORKFLOW = "anima.json"
 
 # Node ID map — single source of truth for all node references
 _NODES = {
@@ -56,14 +57,20 @@ class ComfyWorkflowBuilder:
     Calling `.build()` returns a deep copy of the fully constructed dict.
     """
 
-    def __init__(self, base_workflow_path: Optional[str] = None) -> None:
-        path = Path(base_workflow_path) if base_workflow_path else _BASE_WORKFLOW_PATH
+    def __init__(self, workflow_filename: Optional[str] = None) -> None:
+        filename = workflow_filename or _DEFAULT_WORKFLOW
+        path = _WORKFLOWS_DIR / filename
 
         if not path.exists():
-            raise FileNotFoundError(
-                f"Base workflow not found at: {path}. "
-                "Ensure example.json is present in the Backend/ directory."
-            )
+            # Fallback for Phase 1 compatibility if someone still uses old root example.json
+            root_fallback = Path(__file__).parent.parent / "example.json"
+            if root_fallback.exists():
+                path = root_fallback
+            else:
+                raise FileNotFoundError(
+                    f"Workflow file not found: {path}. "
+                    "Ensure workflows directory exists with valid JSON files."
+                )
 
         with open(path, "r", encoding="utf-8") as f:
             self._workflow: dict = json.load(f)

@@ -5,6 +5,8 @@ interface Settings {
   width: number;
   height: number;
   steps: number;
+  workflow: string;
+  availableWorkflows: string[];
 }
 
 interface SettingsContextType {
@@ -20,6 +22,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     width: 1024,
     height: 1024,
     steps: 30,
+    workflow: "anima.json",
+    availableWorkflows: ["anima.json"],
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -30,25 +34,27 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          setSettings(parsed);
+          setSettings(prev => ({ ...prev, ...parsed }));
           setIsLoading(false);
-          // Still fetch from backend in background to keep it fresh if it's the first time
-          return;
         } catch (e) {
           console.error("Failed to parse saved settings", e);
         }
       }
 
-      // 2. Fetch from backend
+      // 2. Fetch from backend (Always do this to get latest workflows)
       try {
         const config = await apiClient.getConfig();
-        const initialSettings = {
-          width: config.default_width,
-          height: config.default_height,
-          steps: config.ksampler_steps,
-        };
-        setSettings(initialSettings);
-        localStorage.setItem("gen_settings", JSON.stringify(initialSettings));
+        setSettings(prev => {
+          const initialSettings = {
+            width: prev.width || config.default_width,
+            height: prev.height || config.default_height,
+            steps: prev.steps || config.ksampler_steps,
+            workflow: prev.workflow || config.default_workflow || "anima.json",
+            availableWorkflows: config.available_workflows || ["anima.json"],
+          };
+          localStorage.setItem("gen_settings", JSON.stringify(initialSettings));
+          return initialSettings;
+        });
       } catch (err) {
         console.error("Failed to fetch initial settings", err);
       } finally {

@@ -54,6 +54,7 @@ class GenerationParams(BaseModel):
     unet: Optional[str] = Field(default=None, description="UNET model filename")
     vae: Optional[str] = Field(default=None, description="VAE model filename")
     clip: Optional[str] = Field(default=None, description="CLIP model filename")
+    workflow: Optional[str] = Field(default=None, description="ComfyUI workflow filename (e.g. anima.json)")
 
 
 # ── Request DTOs ────────────────────────────────────────────────────────────────
@@ -164,6 +165,8 @@ class AppSettings(BaseModel):
     default_unet: str
     default_vae: str
     default_clip: str
+    available_workflows: list[str] = []
+    default_workflow: str = "anima.json"
 
 
 class ModelList(BaseModel):

@@ -368,6 +368,26 @@ async def list_tasks(batch_id: Optional[str] = None) -> dict:
     return {"tasks": tasks, "total": len(tasks)}
 
 
+@router.delete(
+    "/tasks/{task_id}",
+    summary="Delete a single task",
+)
+async def delete_task(task_id: str) -> dict:
+    success = task_store.delete_task(task_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
+    return {"status": "deleted", "task_id": task_id}
+
+
+@router.delete(
+    "/tasks",
+    summary="Delete all tasks (clear history)",
+)
+async def clear_tasks() -> dict:
+    task_store.clear_all_tasks()
+    return {"status": "cleared"}
+
+
 # ── Queue Stats ────────────────────────────────────────────────────────────────
 
 @router.get(
@@ -430,22 +450,25 @@ async def list_batches() -> dict:
 @router.get(
     "/config",
     response_model=AppSettings,
-    summary="Get default application settings",
+    summary="Get global application settings and defaults",
 )
 async def get_app_config() -> AppSettings:
     """
-    Returns the current defaults from config.py (or .env).
-    The frontend uses this to initialize its global state.
+    Returns default values from config.py to the frontend.
+    Also lists available ComfyUI workflows from the workflows directory.
     """
+    workflows_path = Path(settings.workflows_dir)
+    available_workflows = []
+    if workflows_path.exists():
+        available_workflows = [f.name for f in workflows_path.glob("*.json")]
+
     return AppSettings(
         default_width=settings.default_width,
         default_height=settings.default_height,
         ksampler_steps=settings.ksampler_steps,
-        ksampler_cfg=settings.ksampler_cfg,
-        ksampler_sampler_name=settings.ksampler_sampler_name,
-        ksampler_scheduler=settings.ksampler_scheduler,
-        ksampler_denoise=settings.ksampler_denoise,
         default_unet=settings.default_unet,
         default_vae=settings.default_vae,
         default_clip=settings.default_clip,
+        available_workflows=available_workflows,
+        default_workflow="anima.json" if "anima.json" in available_workflows else (available_workflows[0] if available_workflows else "anima.json")
     )

@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     # ── Jobs Directory ─────────────────────────────────────────────────────
     # Relative to the Backend/ working directory
     jobs_dir: str = "../Jobs"
+    workflows_dir: str = "workflows"
 
     # ── Prompt Defaults ────────────────────────────────────────────────────
     default_positive_prefix: str = (

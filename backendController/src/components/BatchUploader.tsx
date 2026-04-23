@@ -26,6 +26,7 @@ export const BatchUploader: React.FC = () => {
         width: settings.width,
         height: settings.height,
         steps: settings.steps,
+        workflow: settings.workflow,
       });
       setLastBatch(res.batch_id);
       setSelectedFile(null); // Clear after success

@@ -11,6 +11,7 @@ export interface GenerationParams {
   unet?: string;
   vae?: string;
   clip?: string;
+  workflow?: string;
 }
 
 export interface AppConfig {
@@ -24,6 +25,8 @@ export interface AppConfig {
   default_unet: string;
   default_vae: string;
   default_clip: string;
+  available_workflows: string[];
+  default_workflow: string;
 }
 
 export interface GenerationRequest {
@@ -67,6 +70,24 @@ export const apiClient = {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) throw new Error("Failed to fetch task status");
+    return response.json();
+  },
+
+  async deleteTask(taskId: string) {
+    const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
+      method: "DELETE",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw new Error("Failed to delete task");
+    return response.json();
+  },
+
+  async deleteAllTasks() {
+    const response = await fetch(`${API_BASE}/tasks`, {
+      method: "DELETE",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw new Error("Failed to clear tasks");
     return response.json();
   },
 

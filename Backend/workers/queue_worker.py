@@ -59,6 +59,20 @@ class InMemoryTaskStore:
     def get_task(self, task_id: str) -> Optional[dict[str, Any]]:
         return self._tasks.get(task_id)
 
+    def delete_task(self, task_id: str) -> bool:
+        """Remove a task from the store and clean up its subscribers."""
+        if task_id in self._tasks:
+            del self._tasks[task_id]
+            self._subscribers.pop(task_id, None)
+            return True
+        return False
+
+    def clear_all_tasks(self) -> None:
+        """Wipe the entire task store."""
+        self._tasks.clear()
+        self._subscribers.clear()
+        logger.info("Task store cleared")
+
     def get_all_tasks(self) -> list[dict[str, Any]]:
         return list(self._tasks.values())
 
@@ -168,8 +182,9 @@ async def _run_single_task(task_id: str) -> None:
         seed = task.get("seed") or random.randint(0, 2**32 - 1)
 
         # ── 2. Build workflow (Builder Pattern) ────────────────────────────────
+        workflow_name = task.get("workflow")
         workflow = (
-            ComfyWorkflowBuilder()
+            ComfyWorkflowBuilder(workflow_name)
             .set_positive_prompt(task["positive_prompt"])
             .set_negative_prompt(task.get("negative_prompt") or build_negative_prompt())
             .set_dimensions(

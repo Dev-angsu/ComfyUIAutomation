@@ -26,6 +26,29 @@ export const TaskList: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const handleDeleteTask = async (e: React.MouseEvent, taskId: string) => {
+    e.stopPropagation(); // Don't open the modal
+    if (!window.confirm("Delete this task from history?")) return;
+    
+    try {
+      await apiClient.deleteTask(taskId);
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    } catch (err) {
+      alert("Failed to delete task");
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!window.confirm("Are you sure you want to clear ALL task history?")) return;
+    
+    try {
+      await apiClient.deleteAllTasks();
+      setTasks([]);
+    } catch (err) {
+      alert("Failed to clear tasks");
+    }
+  };
+
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -112,6 +135,14 @@ export const TaskList: React.FC = () => {
           <span className="text-xs text-zinc-500 font-mono">
             Total: {filteredTasks.length}
           </span>
+          {tasks.length > 0 && (
+            <button
+              onClick={handleClearAll}
+              className="text-[10px] font-bold text-red-400/60 hover:text-red-400 px-2 py-1 rounded border border-red-500/10 hover:border-red-500/30 transition-all uppercase tracking-tighter ml-2"
+            >
+              Clear All
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="relative w-full sm:w-48">
@@ -156,6 +187,7 @@ export const TaskList: React.FC = () => {
               <th className="px-4 py-3 font-medium">Task ID</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Prompt Snippet</th>
+              <th className="px-4 py-3 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800/50">
@@ -186,6 +218,20 @@ export const TaskList: React.FC = () => {
                   </td>
                   <td className="px-4 py-3 text-xs opacity-80 whitespace-normal break-words min-w-[250px]">
                     {task.positive_prompt}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={(e) => handleDeleteTask(e, task.id)}
+                      className="p-1.5 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                      title="Delete Task"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                      </svg>
+                    </button>
                   </td>
                 </tr>
               ))
@@ -272,6 +318,14 @@ export const TaskList: React.FC = () => {
                 <ModalField
                   label="Seed"
                   value={selectedTask.seed || "Random"}
+                />
+                <ModalField
+                  label="Steps"
+                  value={selectedTask.steps || "Default"}
+                />
+                <ModalField
+                  label="Workflow"
+                  value={selectedTask.workflow || "anima.json"}
                 />
                 <ModalField
                   label="Comfy Prompt ID"

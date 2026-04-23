@@ -39,6 +39,31 @@ export const GenerationSettings: React.FC = () => {
       </div>
 
       <div className="flex flex-col gap-5">
+        {/* Workflow Selection */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+            Active Workflow
+          </label>
+          <div className="relative">
+            <select
+              value={settings.workflow}
+              onChange={(e) => updateSettings({ workflow: e.target.value })}
+              className="w-full bg-black/40 border border-zinc-800 rounded-lg p-2.5 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500/50 appearance-none cursor-pointer"
+            >
+              {(settings.availableWorkflows || []).map((wf) => (
+                <option key={wf} value={wf}>
+                  {wf.replace(".json", "").charAt(0).toUpperCase() + wf.replace(".json", "").slice(1)}
+                </option>
+              ))}
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round">
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
         {/* Width Slider */}
         <div className="flex flex-col gap-2">
           <div className="flex justify-between items-center">
