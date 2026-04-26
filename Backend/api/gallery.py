@@ -17,9 +17,10 @@ The proxy endpoint (/api/images) stays unchanged in both phases.
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import Response
-
+from core.auth import get_current_user
+from core.database import User
 from adapters.comfy_client import comfy_adapter
 from config import settings
 from models.schemas import GalleryPage, ImageInfo
@@ -106,7 +107,7 @@ def _extract_from_history(record: dict) -> dict:
 
 # ── Full Gallery (from ComfyUI history) ───────────────────────────────────────
 
-async def _get_all_images_metadata() -> list[ImageInfo]:
+async def _get_all_images_metadata(user_id: int) -> list[ImageInfo]:
     """Helper to fetch and map all images from ComfyUI history with metadata."""
     try:
         history = await comfy_adapter.get_full_history()
@@ -115,14 +116,40 @@ async def _get_all_images_metadata() -> list[ImageInfo]:
         return []
 
     all_images: list[ImageInfo] = []
+    # Only get tasks for this user
+    user_tasks = task_store.get_all_tasks(user_id=user_id)
     task_map = {
         t.get("comfy_prompt_id"): t 
-        for t in task_store.get_all_tasks() 
+        for t in user_tasks 
         if t.get("comfy_prompt_id")
     }
 
+    user_subfolder_prefix = f"users/{user_id}"
+
     for prompt_id, record in history.items():
         task = task_map.get(prompt_id)
+        
+        outputs = record.get("outputs", {})
+        save_output = outputs.get(settings.comfy_output_node_id, {})
+        
+        # Check if ANY image in this record belongs to the user's subfolder
+        # or if we have a task record for it.
+        belongs_to_user = False
+        images_in_record = save_output.get("images", [])
+        
+        if task:
+            belongs_to_user = True
+        else:
+            # Fallback: check subfolder strings
+            for img in images_in_record:
+                sub = img.get("subfolder", "").replace("\\", "/")
+                if sub == user_subfolder_prefix or sub.startswith(f"{user_subfolder_prefix}/"):
+                    belongs_to_user = True
+                    break
+        
+        if not belongs_to_user:
+            continue
+
         if task:
             pos = task.get("positive_prompt")
             neg = task.get("negative_prompt")
@@ -141,10 +168,12 @@ async def _get_all_images_metadata() -> list[ImageInfo]:
             sd = meta.get("seed")
             wf = None
 
-        outputs = record.get("outputs", {})
-        save_output = outputs.get(settings.comfy_output_node_id, {})
-        for img in save_output.get("images", []):
-            all_images.append(_make_image_info(img, pos, neg, w, h, s, sd, wf))
+        for img in images_in_record:
+            # Only include images that are actually in the user's subfolder
+            sub = img.get("subfolder", "").replace("\\", "/")
+            is_in_user_folder = sub == user_subfolder_prefix or sub.startswith(f"{user_subfolder_prefix}/")
+            if is_in_user_folder or task:
+                all_images.append(_make_image_info(img, pos, neg, w, h, s, sd, wf))
 
     all_images.reverse()
     return all_images
@@ -158,12 +187,13 @@ async def _get_all_images_metadata() -> list[ImageInfo]:
 async def get_gallery(
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(default=20, ge=1, le=1000, description="Images per page"),
+    user: User = Depends(get_current_user)
 ) -> GalleryPage:
     """
     Phase 1: Reads directly from ComfyUI's /history endpoint.
     Phase 2: Replaced by PostgreSQL paginated query.
     """
-    all_images = await _get_all_images_metadata()
+    all_images = await _get_all_images_metadata(user_id=user.id)
     if not all_images and page == 1:
         # Check if it was an error or just empty
         # We don't raise here to allow empty gallery UI
@@ -188,9 +218,9 @@ async def get_gallery(
     response_model=list[ImageInfo],
     summary="Get ALL images metadata (no pagination)",
 )
-async def get_all_gallery_images() -> list[ImageInfo]:
+async def get_all_gallery_images(user: User = Depends(get_current_user)) -> list[ImageInfo]:
     """Returns every image in the gallery history. Use for bulk downloads."""
-    return await _get_all_images_metadata()
+    return await _get_all_images_metadata(user_id=user.id)
 
 
 # ── Images for a Specific Task ────────────────────────────────────────────────
@@ -199,10 +229,10 @@ async def get_all_gallery_images() -> list[ImageInfo]:
     "/gallery/task/{task_id}",
     summary="Get images produced by a specific task",
 )
-async def get_task_images(task_id: str) -> dict:
+async def get_task_images(task_id: str, user: User = Depends(get_current_user)) -> dict:
     """Returns images for a completed task from the in-memory task store."""
     task = task_store.get_task(task_id)
-    if not task:
+    if not task or task.get("user_id") != user.id:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
 
     raw_images: list[dict] = task.get("images") or []
@@ -240,18 +270,50 @@ async def proxy_image(
     filename: str,
     subfolder: str = Query(default="", description="ComfyUI subfolder"),
     type: str = Query(default="output", description="ComfyUI image type (output/input/temp)"),
+    token: Optional[str] = Query(default=None),
 ) -> Response:
     """
     Fetches image bytes from ComfyUI's /view endpoint and streams them to the client.
-
-    Platform-agnostic by design:
-      - ComfyUI runs on Windows (F:\\...\\output)
-      - This app runs on macOS
-      - The frontend runs in the browser
-      - None of them share a filesystem — everything goes through HTTP.
-
-    Security: path traversal prevention built in.
+    Validates that the subfolder belongs to the user if it's an output image.
+    Supports both Authorization header and 'token' query parameter for <img> tags.
     """
+    from core.auth import SECRET_KEY, ALGORITHM, oauth2_scheme
+    from core.database import SessionLocal, User as UserMod
+    from jose import jwt
+    from fastapi import Request
+
+    user = None
+    
+    # 1. Try token from query param (highest priority for <img> tags)
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            username: str = payload.get("sub")
+            with SessionLocal() as db:
+                user = db.query(UserMod).filter(UserMod.username == username).first()
+            if user:
+                logger.debug(f"Resolved user {user.username} from token for {filename}")
+            else:
+                logger.warning(f"Valid token for {username} but user not found in DB")
+        except Exception as e:
+            logger.warning(f"Failed to decode image proxy token: {e}")
+            pass
+    
+    # 2. If no user yet, no other choice (we can't easily call Depends() here)
+    if not user:
+        logger.warning(f"Unauthorized image proxy request for {filename} (no valid token)")
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    # Security: Ensure user only accesses their own output folder
+    if type == "output":
+        user_prefix = f"users/{user.id}"
+        # Normalize slashes for Windows compatibility
+        normalized_subfolder = subfolder.replace("\\", "/")
+        is_authorized = normalized_subfolder == user_prefix or normalized_subfolder.startswith(f"{user_prefix}/")
+        if not is_authorized:
+             logger.warning(f"Unauthorized image access attempt by user {user.id} ({user.username}) for subfolder {subfolder} (expected prefix {user_prefix})")
+             raise HTTPException(status_code=403, detail="Unauthorized access to this image")
+
     # Prevent path traversal attacks
     if any(c in filename for c in ("..", "/", "\\", "\x00")):
         raise HTTPException(status_code=400, detail="Invalid filename")

@@ -23,8 +23,10 @@ Event shapes sent to Next.js:
 import asyncio
 import logging
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends
+from jose import jwt, JWTError
+from core.auth import SECRET_KEY, ALGORITHM
+from core.database import SessionLocal, User
 from models.schemas import TaskStatus
 from workers.queue_worker import batch_store, task_store
 
@@ -38,23 +40,35 @@ _PING_INTERVAL_SECONDS = 15.0
 # ── Task-level Progress Stream ─────────────────────────────────────────────────
 
 @router.websocket("/ws/progress/{task_id}")
-async def websocket_task_progress(websocket: WebSocket, task_id: str) -> None:
+async def websocket_task_progress(
+    websocket: WebSocket, 
+    task_id: str,
+    token: str = Query(...)
+) -> None:
     """
     Real-time progress stream for a single generation task.
-
-    Connect immediately after enqueuing a task. Receive events as the
-    worker processes it through ComfyUI. Automatically closes when the
-    terminal event (completed / error) is received.
-
-    Multiple clients can connect to the same task_id simultaneously
-    (e.g. two browser tabs watching the same generation).
+    Requires 'token' query parameter for authentication.
     """
     await websocket.accept()
-    logger.info(f"WS connected for task: {task_id}")
+    
+    # Authenticate manually for WebSocket
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        with SessionLocal() as db:
+            user = db.query(User).filter(User.username == username).first()
+            if not user:
+                raise ValueError("User not found")
+    except (JWTError, ValueError):
+        await websocket.send_json({"type": "error", "message": "Unauthorized"})
+        await websocket.close(code=4001)
+        return
+
+    logger.info(f"WS connected for task: {task_id} (user {user.id})")
 
     task = task_store.get_task(task_id)
-    if not task:
-        await websocket.send_json({"type": "error", "message": f"Task '{task_id}' not found"})
+    if not task or task.get("user_id") != user.id:
+        await websocket.send_json({"type": "error", "message": f"Task '{task_id}' not found or unauthorized"})
         await websocket.close(code=4004)
         return
 
@@ -112,25 +126,37 @@ async def websocket_task_progress(websocket: WebSocket, task_id: str) -> None:
 # ── Batch-level Progress Stream ────────────────────────────────────────────────
 
 @router.websocket("/ws/batch/{batch_id}")
-async def websocket_batch_progress(websocket: WebSocket, batch_id: str) -> None:
+async def websocket_batch_progress(
+    websocket: WebSocket, 
+    batch_id: str,
+    token: str = Query(...)
+) -> None:
     """
     Polls batch progress and pushes updates to the connected client.
-
-    Phase 1: Uses polling against the in-memory task store (every 2 seconds).
-    Phase 2: Redis Pub/Sub channel ws:batch:{batch_id} will replace polling.
-
-    Emits:
-      { "type": "batch_progress", "completed": 5, "total": 50, "failed": 0, "pct": 10 }
-      { "type": "batch_complete", "completed": 50, "failed": 0 }
+    Requires 'token' query parameter for authentication.
     """
     await websocket.accept()
-    logger.info(f"WS connected for batch: {batch_id}")
+
+    # Authenticate manually for WebSocket
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        with SessionLocal() as db:
+            user = db.query(User).filter(User.username == username).first()
+            if not user:
+                raise ValueError("User not found")
+    except (JWTError, ValueError):
+        await websocket.send_json({"type": "error", "message": "Unauthorized"})
+        await websocket.close(code=4001)
+        return
+
+    logger.info(f"WS connected for batch: {batch_id} (user {user.id})")
 
     batch = batch_store.get_batch(batch_id)
-    if not batch:
+    if not batch or batch.get("user_id") != user.id:
         await websocket.send_json({
             "type": "error",
-            "message": f"Batch '{batch_id}' not found",
+            "message": f"Batch '{batch_id}' not found or unauthorized",
         })
         await websocket.close(code=4004)
         return

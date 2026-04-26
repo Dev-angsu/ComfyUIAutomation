@@ -1,104 +1,156 @@
-from __future__ import annotations
-
-"""
-AI Studio — In-Memory Task Store & Generation Queue Worker
------------------------------------------------------------
-Phase 1 implementation: no Redis/DB — pure asyncio in-memory state.
-Phase 2 will swap this module for Redis-backed queuing (same interface).
-
-Components:
-  - InMemoryTaskStore   — stores task state + pub/sub subscriptions
-  - InMemoryBatchStore  — tracks batch-level aggregation
-  - generation_queue    — asyncio.Queue feeding the worker
-  - enqueue_generation_task() — public API for routes to submit jobs
-  - generation_worker() — single-consumer coroutine (one task at a time)
-"""
-
 import asyncio
 import logging
 import random
+import json
 from typing import Any, Optional
 
 from adapters.comfy_client import comfy_adapter
 from config import settings
 from core.prompt_engine import build_negative_prompt
 from core.workflow_builder import ComfyWorkflowBuilder
+from core.database import SessionLocal, Task, Batch
 from models.schemas import BatchStatus, TaskStatus
 
 logger = logging.getLogger(__name__)
 
 
-# ── In-Memory Task Store ──────────────────────────────────────────────────────
+# ── Database-Backed Task Store ────────────────────────────────────────────────
 
-class InMemoryTaskStore:
+class TaskStore:
     """
-    Thread-safe (asyncio-safe) store for generation tasks and their WS subscribers.
-
-    Design note: In Phase 2 this is replaced by Redis + PostgreSQL.
-    The public interface stays identical so callers don't need to change.
+    Store for generation tasks, backed by SQLite, with in-memory WS subscriptions.
     """
 
     def __init__(self) -> None:
-        self._tasks: dict[str, dict[str, Any]] = {}
         # Per-task subscriber queues (one per connected WS client)
         self._subscribers: dict[str, list[asyncio.Queue]] = {}
 
     # ── Task CRUD ──────────────────────────────────────────────────────────────
 
     def create_task(self, task_id: str, initial_data: dict[str, Any]) -> None:
-        self._tasks[task_id] = {
-            **initial_data,
-            "id": task_id,
-            "status": TaskStatus.QUEUED,
-        }
+        with SessionLocal() as db:
+            images_json = json.dumps(initial_data.get("images", []))
+            new_task = Task(
+                id=task_id,
+                status=TaskStatus.QUEUED,
+                type=initial_data.get("type"),
+                batch_id=initial_data.get("batch_id"),
+                positive_prompt=initial_data.get("positive_prompt"),
+                negative_prompt=initial_data.get("negative_prompt"),
+                seed=initial_data.get("seed"),
+                width=initial_data.get("width") or settings.default_width,
+                height=initial_data.get("height") or settings.default_height,
+                steps=initial_data.get("steps") or settings.ksampler_steps,
+                cfg=initial_data.get("cfg") or settings.ksampler_cfg,
+                sampler_name=initial_data.get("sampler_name") or settings.ksampler_sampler_name,
+                scheduler=initial_data.get("scheduler") or settings.ksampler_scheduler,
+                denoise=initial_data.get("denoise") or settings.ksampler_denoise,
+                workflow=initial_data.get("workflow") or "anima.json",
+                user_id=initial_data.get("user_id"),
+                images_json=images_json
+            )
+            db.add(new_task)
+            db.commit()
 
     def update_task(self, task_id: str, **kwargs: Any) -> None:
-        if task_id in self._tasks:
-            self._tasks[task_id].update(kwargs)
+        with SessionLocal() as db:
+            task = db.query(Task).filter(Task.id == task_id).first()
+            if task:
+                if "images" in kwargs:
+                    kwargs["images_json"] = json.dumps(kwargs.pop("images"))
+                
+                for key, value in kwargs.items():
+                    setattr(task, key, value)
+                db.commit()
 
     def get_task(self, task_id: str) -> Optional[dict[str, Any]]:
-        return self._tasks.get(task_id)
+        with SessionLocal() as db:
+            task = db.query(Task).filter(Task.id == task_id).first()
+            if not task:
+                return None
+            return self._to_dict(task)
 
     def delete_task(self, task_id: str) -> bool:
-        """Remove a task from the store and clean up its subscribers."""
-        if task_id in self._tasks:
-            del self._tasks[task_id]
-            self._subscribers.pop(task_id, None)
-            return True
-        return False
+        with SessionLocal() as db:
+            task = db.query(Task).filter(Task.id == task_id).first()
+            if task:
+                db.delete(task)
+                db.commit()
+                self._subscribers.pop(task_id, None)
+                return True
+            return False
 
-    def clear_all_tasks(self) -> None:
-        """Wipe the entire task store."""
-        self._tasks.clear()
-        self._subscribers.clear()
-        logger.info("Task store cleared")
+    def clear_all_tasks(self, user_id: Optional[int] = None) -> None:
+        with SessionLocal() as db:
+            query = db.query(Task)
+            if user_id:
+                query = query.filter(Task.user_id == user_id)
+            query.delete()
+            db.commit()
+            # Note: subscribers are harder to clear selectively, but they are transient anyway
+            if not user_id:
+                self._subscribers.clear()
+        logger.info(f"Task store cleared (user_id={user_id})")
 
-    def get_all_tasks(self) -> list[dict[str, Any]]:
-        return list(self._tasks.values())
+    def get_all_tasks(self, user_id: Optional[int] = None) -> list[dict[str, Any]]:
+        with SessionLocal() as db:
+            query = db.query(Task)
+            if user_id:
+                query = query.filter(Task.user_id == user_id)
+            tasks = query.all()
+            return [self._to_dict(t) for t in tasks]
 
     def get_tasks_by_batch(self, batch_id: str) -> list[dict[str, Any]]:
-        return [t for t in self._tasks.values() if t.get("batch_id") == batch_id]
+        with SessionLocal() as db:
+            tasks = db.query(Task).filter(Task.batch_id == batch_id).all()
+            return [self._to_dict(t) for t in tasks]
 
-    def get_queue_stats(self) -> dict[str, int]:
-        statuses = [t["status"] for t in self._tasks.values()]
+    def get_queue_stats(self, user_id: Optional[int] = None) -> dict[str, int]:
+        with SessionLocal() as db:
+            query = db.query(Task)
+            if user_id:
+                query = query.filter(Task.user_id == user_id)
+            tasks = query.all()
+            statuses = [t.status for t in tasks]
+            return {
+                "queued": statuses.count(TaskStatus.QUEUED),
+                "executing": statuses.count(TaskStatus.EXECUTING),
+                "completed": statuses.count(TaskStatus.DONE),
+                "failed": statuses.count(TaskStatus.ERROR),
+                "total": len(statuses),
+            }
+
+    def _to_dict(self, task: Task) -> dict[str, Any]:
         return {
-            "queued": statuses.count(TaskStatus.QUEUED),
-            "executing": statuses.count(TaskStatus.EXECUTING),
-            "completed": statuses.count(TaskStatus.DONE),
-            "failed": statuses.count(TaskStatus.ERROR),
-            "total": len(statuses),
+            "id": task.id,
+            "status": task.status,
+            "type": task.type,
+            "batch_id": task.batch_id,
+            "positive_prompt": task.positive_prompt,
+            "negative_prompt": task.negative_prompt,
+            "seed": task.seed,
+            "width": task.width,
+            "height": task.height,
+            "steps": task.steps,
+            "cfg": task.cfg,
+            "sampler_name": task.sampler_name,
+            "scheduler": task.scheduler,
+            "denoise": task.denoise,
+            "workflow": task.workflow,
+            "comfy_prompt_id": task.comfy_prompt_id,
+            "images": json.loads(task.images_json) if task.images_json else [],
+            "error": task.error,
+            "user_id": task.user_id,
         }
 
     # ── Pub/Sub for WebSocket streaming ────────────────────────────────────────
 
     def subscribe(self, task_id: str) -> asyncio.Queue:
-        """Create a subscriber queue for a task's progress events."""
         q: asyncio.Queue = asyncio.Queue()
         self._subscribers.setdefault(task_id, []).append(q)
         return q
 
     def unsubscribe(self, task_id: str, queue: asyncio.Queue) -> None:
-        """Remove a specific subscriber queue (called on WS disconnect)."""
         subs = self._subscribers.get(task_id, [])
         try:
             subs.remove(queue)
@@ -108,63 +160,89 @@ class InMemoryTaskStore:
             self._subscribers.pop(task_id, None)
 
     async def publish(self, task_id: str, event: dict[str, Any]) -> None:
-        """Broadcast an event to all subscribers of this task_id."""
         for q in self._subscribers.get(task_id, []):
             await q.put(event)
 
 
-# ── In-Memory Batch Store ─────────────────────────────────────────────────────
+# ── Database-Backed Batch Store ───────────────────────────────────────────────
 
-class InMemoryBatchStore:
-    """Tracks batch-level metadata (aggregates multiple tasks)."""
-
-    def __init__(self) -> None:
-        self._batches: dict[str, dict[str, Any]] = {}
-
+class BatchStore:
     def create_batch(self, batch_id: str, data: dict[str, Any]) -> None:
-        self._batches[batch_id] = {**data, "id": batch_id, "status": BatchStatus.PENDING}
+        with SessionLocal() as db:
+            new_batch = Batch(
+                id=batch_id,
+                name=data.get("name"),
+                type=data.get("type"),
+                status=BatchStatus.PENDING,
+                total_tasks=data.get("total_tasks", 0),
+                user_id=data.get("user_id")
+            )
+            db.add(new_batch)
+            db.commit()
 
     def update_batch(self, batch_id: str, **kwargs: Any) -> None:
-        if batch_id in self._batches:
-            self._batches[batch_id].update(kwargs)
+        with SessionLocal() as db:
+            batch = db.query(Batch).filter(Batch.id == batch_id).first()
+            if batch:
+                for key, value in kwargs.items():
+                    setattr(batch, key, value)
+                db.commit()
 
     def get_batch(self, batch_id: str) -> Optional[dict[str, Any]]:
-        return self._batches.get(batch_id)
+        with SessionLocal() as db:
+            batch = db.query(Batch).filter(Batch.id == batch_id).first()
+            if not batch:
+                return None
+            return {
+                "id": batch.id,
+                "name": batch.name,
+                "type": batch.type,
+                "status": batch.status,
+                "total_tasks": batch.total_tasks,
+                "completed": batch.completed,
+                "failed": batch.failed,
+                "user_id": batch.user_id,
+            }
 
-    def get_all_batches(self) -> list[dict[str, Any]]:
-        return list(self._batches.values())
+    def get_all_batches(self, user_id: Optional[int] = None) -> list[dict[str, Any]]:
+        with SessionLocal() as db:
+            query = db.query(Batch)
+            if user_id:
+                query = query.filter(Batch.user_id == user_id)
+            batches = query.all()
+            return [
+                {
+                    "id": b.id,
+                    "name": b.name,
+                    "type": b.type,
+                    "status": b.status,
+                    "total_tasks": b.total_tasks,
+                    "completed": b.completed,
+                    "failed": b.failed,
+                    "user_id": b.user_id,
+                }
+                for b in batches
+            ]
 
 
 # ── Module-level singletons ───────────────────────────────────────────────────
 
-task_store = InMemoryTaskStore()
-batch_store = InMemoryBatchStore()
+task_store = TaskStore()
+batch_store = BatchStore()
 generation_queue: asyncio.Queue = asyncio.Queue()
 
 
 # ── Public Enqueue API ────────────────────────────────────────────────────────
 
 async def enqueue_generation_task(task_id: str, task_data: dict[str, Any]) -> None:
-    """
-    Create a task record and add it to the processing queue.
-    Called by API routes after validating the request.
-    """
     task_store.create_task(task_id, task_data)
     await generation_queue.put(task_id)
-    logger.info(f"Enqueued task: {task_id} (type={task_data.get('type', 'MANUAL')})")
+    logger.info(f"Enqueued task: {task_id} (user_id={task_data.get('user_id')})")
 
 
 # ── Worker Internals ──────────────────────────────────────────────────────────
 
 async def _run_single_task(task_id: str) -> None:
-    """
-    Process one generation task end-to-end:
-      1. Build ComfyUI workflow via Builder Pattern
-      2. Submit to ComfyUI via Adapter
-      3. Wait for WS completion event (Observer Pattern)
-      4. Retrieve image filenames from history
-      5. Update task state and notify WS subscribers
-    """
     task = task_store.get_task(task_id)
     if not task:
         logger.error(f"Task {task_id} not found in store — skipping")
@@ -181,7 +259,13 @@ async def _run_single_task(task_id: str) -> None:
         # ── 1. Resolve seed ────────────────────────────────────────────────────
         seed = task.get("seed") or random.randint(0, 2**32 - 1)
 
-        # ── 2. Build workflow (Builder Pattern) ────────────────────────────────
+        # ── 2. Build output prefix with user-specific folder ───────────────────
+        user_id = task.get("user_id") or "anonymous"
+        base_prefix = task.get("output_prefix") or settings.default_output_prefix
+        # PREPEND user folder: users/{user_id}/{prefix}
+        user_prefix = f"users/{user_id}/{base_prefix}"
+
+        # ── 3. Build workflow (Builder Pattern) ────────────────────────────────
         workflow_name = task.get("workflow")
         workflow = (
             ComfyWorkflowBuilder(workflow_name)
@@ -204,34 +288,25 @@ async def _run_single_task(task_id: str) -> None:
                 vae=task.get("vae") or settings.default_vae,
                 clip=task.get("clip") or settings.default_clip,
             )
-            .set_output_prefix(task.get("output_prefix") or settings.default_output_prefix)
+            .set_output_prefix(user_prefix)
             .build()
         )
 
-        # ── 3. Register progress callback BEFORE queuing to avoid missing events
-        prompt_id_holder: list[str] = []  # mutable container for closure
-
+        # ── 4. Register progress callback
         async def on_progress(pid: str, event: dict) -> None:
-            """Closure routes ComfyUI events to our task_id subscriber."""
-            task_store.update_task(task_id, last_event=event)
             await task_store.publish(task_id, event)
 
-        # ── 4. Submit workflow to ComfyUI (Adapter Pattern) ───────────────────
+        # ── 5. Submit workflow to ComfyUI
         prompt_id = await comfy_adapter.queue_prompt(workflow)
-        prompt_id_holder.append(prompt_id)
-
         task_store.update_task(task_id, comfy_prompt_id=prompt_id, seed=seed)
-
-        # Register callback keyed by prompt_id (ComfyUI's identifier)
         comfy_adapter.register_progress_callback(prompt_id, on_progress)
 
-        logger.info(f"Task {task_id} → ComfyUI prompt_id: {prompt_id}")
+        logger.info(f"Task {task_id} (user {user_id}) → ComfyUI prompt_id: {prompt_id}")
 
-        # ── 5. Wait for completion (up to 10 minutes) ─────────────────────────
+        # ── 6. Wait for completion
         success = await comfy_adapter.wait_for_completion(prompt_id, timeout=600.0)
 
         if success:
-            # ── 6. Fetch generated image filenames from ComfyUI history ───────
             history = await comfy_adapter.get_history(prompt_id)
             images: list[dict] = []
 
@@ -264,15 +339,11 @@ async def _run_single_task(task_id: str) -> None:
                 "task_id": task_id,
             })
 
-            # Update parent batch progress
             batch_id = task.get("batch_id")
             if batch_id:
                 _update_batch_progress(batch_id)
 
-            logger.info(
-                f"✅ Task {task_id} done. "
-                f"Images: {[img['filename'] for img in images]}"
-            )
+            logger.info(f"✅ Task {task_id} done for user {user_id}")
         else:
             _fail_task(task_id, "Generation timed out after 10 minutes")
 
@@ -281,16 +352,13 @@ async def _run_single_task(task_id: str) -> None:
         _fail_task(task_id, str(exc))
 
     finally:
-        # Always clean up the callback registration
         pid = task_store.get_task(task_id) or {}
         if resolved_pid := pid.get("comfy_prompt_id"):
             comfy_adapter.unregister_progress_callback(resolved_pid)
 
 
 def _fail_task(task_id: str, reason: str) -> None:
-    """Mark a task as ERROR and fire an error event synchronously."""
     task_store.update_task(task_id, status=TaskStatus.ERROR, error=reason)
-    # Schedule the async publish without awaiting (we may be in an except block)
     asyncio.create_task(
         task_store.publish(task_id, {"type": "error", "message": reason, "task_id": task_id})
     )
@@ -298,7 +366,6 @@ def _fail_task(task_id: str, reason: str) -> None:
 
 
 def _update_batch_progress(batch_id: str) -> None:
-    """Recalculate and persist batch status based on its tasks."""
     tasks = task_store.get_tasks_by_batch(batch_id)
     if not tasks:
         return
@@ -315,16 +382,7 @@ def _update_batch_progress(batch_id: str) -> None:
     batch_store.update_batch(batch_id, status=status, completed=done, failed=failed)
 
 
-# ── Main Worker Coroutine ─────────────────────────────────────────────────────
-
 async def generation_worker() -> None:
-    """
-    Single-consumer background coroutine.
-    Processes tasks from the generation_queue one at a time.
-
-    Single-consumer design ensures the local GPU isn't overwhelmed.
-    In Phase 2 this becomes a Redis BLPOP-based worker.
-    """
     logger.info("🚀 Generation worker started — waiting for tasks...")
 
     while True:

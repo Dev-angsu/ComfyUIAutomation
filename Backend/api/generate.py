@@ -20,8 +20,9 @@ import logging
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Depends
+from core.auth import get_current_user
+from core.database import User
 from adapters.job_parsers import JobLoader
 from config import settings
 from core.prompt_engine import build_negative_prompt, build_positive_prompt, build_dynamic_prompt
@@ -88,7 +89,7 @@ def _build_task_data(
     response_model=TaskEnqueuedResponse,
     summary="Queue a single manual generation job",
 )
-async def generate_single(req: GenerationRequest) -> TaskEnqueuedResponse:
+async def generate_single(req: GenerationRequest, user: User = Depends(get_current_user)) -> TaskEnqueuedResponse:
     """
     Manual single-job request from the Studio viewport.
     Returns immediately with a task_id — connect to WS /ws/progress/{task_id} for live updates.
@@ -103,6 +104,7 @@ async def generate_single(req: GenerationRequest) -> TaskEnqueuedResponse:
         params=req.params,
         output_prefix=req.output_prefix or settings.default_output_prefix,
     )
+    task_data["user_id"] = user.id
 
     await enqueue_generation_task(task_id, task_data)
     logger.info(f"Manual task enqueued: {task_id}")
@@ -116,7 +118,7 @@ async def generate_single(req: GenerationRequest) -> TaskEnqueuedResponse:
     response_model=BatchEnqueuedResponse,
     summary="Queue a batch from pre-parsed job rows",
 )
-async def run_csv_batch(req: CSVBatchRequest) -> BatchEnqueuedResponse:
+async def run_csv_batch(req: CSVBatchRequest, user: User = Depends(get_current_user)) -> BatchEnqueuedResponse:
     """
     Accepts a JSON payload of job rows (e.g. from the Batch Manager table).
     Dispatches each enabled row as individual tasks under a shared batch_id.
@@ -128,6 +130,7 @@ async def run_csv_batch(req: CSVBatchRequest) -> BatchEnqueuedResponse:
         "name": req.name,
         "type": BatchType.CSV,
         "total_tasks": 0,
+        "user_id": user.id,
     })
 
     for job in req.jobs:
@@ -169,6 +172,7 @@ async def run_csv_batch(req: CSVBatchRequest) -> BatchEnqueuedResponse:
                 output_prefix=job.character or settings.default_output_prefix,
                 batch_id=batch_id,
             )
+            task_data["user_id"] = user.id
             await enqueue_generation_task(task_id, task_data)
             task_ids.append(task_id)
 
@@ -192,6 +196,7 @@ async def run_csv_batch(req: CSVBatchRequest) -> BatchEnqueuedResponse:
 async def upload_csv_batch(
     file: UploadFile = File(..., description=".csv or .json job file"),
     global_params_json: str = Form(default="{}", description="JSON-encoded GenerationParams overrides"),
+    user: User = Depends(get_current_user),
 ) -> BatchEnqueuedResponse:
     """
     Drag-and-drop CSV upload from the Batch Manager UI.
@@ -218,6 +223,7 @@ async def upload_csv_batch(
         "name": f"Upload: {filename}",
         "type": BatchType.CSV,
         "total_tasks": 0,
+        "user_id": user.id,
     })
 
     valid_prompt_keys = {"subject", "character", "series", "artist", "general_tags", "natural_language"}
@@ -245,6 +251,7 @@ async def upload_csv_batch(
                 output_prefix=prefix,
                 batch_id=batch_id,
             )
+            task_data["user_id"] = user.id
             await enqueue_generation_task(task_id, task_data)
             task_ids.append(task_id)
 
@@ -265,7 +272,7 @@ async def upload_csv_batch(
     response_model=BatchEnqueuedResponse,
     summary="Queue a dynamic template batch",
 )
-async def run_dynamic_batch(req: DynamicBatchRequest) -> BatchEnqueuedResponse:
+async def run_dynamic_batch(req: DynamicBatchRequest, user: User = Depends(get_current_user)) -> BatchEnqueuedResponse:
     """
     Generates `count` images using random template substitutions from a dictionary file.
     Each image gets a freshly randomized prompt from the template pool.
@@ -298,6 +305,7 @@ async def run_dynamic_batch(req: DynamicBatchRequest) -> BatchEnqueuedResponse:
         "name": req.name,
         "type": BatchType.DYNAMIC,
         "total_tasks": req.count,
+        "user_id": user.id,
     })
 
     for _ in range(req.count):
@@ -314,6 +322,7 @@ async def run_dynamic_batch(req: DynamicBatchRequest) -> BatchEnqueuedResponse:
             output_prefix=char_name or settings.default_output_prefix,
             batch_id=batch_id,
         )
+        task_data["user_id"] = user.id
         await enqueue_generation_task(task_id, task_data)
         task_ids.append(task_id)
 
@@ -333,9 +342,9 @@ async def run_dynamic_batch(req: DynamicBatchRequest) -> BatchEnqueuedResponse:
     response_model=TaskStatusResponse,
     summary="Get status of a single task",
 )
-async def get_task_status(task_id: str) -> TaskStatusResponse:
+async def get_task_status(task_id: str, user: User = Depends(get_current_user)) -> TaskStatusResponse:
     task = task_store.get_task(task_id)
-    if not task:
+    if not task or task.get("user_id") != user.id:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
 
     return TaskStatusResponse(
@@ -359,11 +368,13 @@ async def get_task_status(task_id: str) -> TaskStatusResponse:
     "/tasks",
     summary="List all tasks (optionally filter by batch_id)",
 )
-async def list_tasks(batch_id: Optional[str] = None) -> dict:
+async def list_tasks(batch_id: Optional[str] = None, user: User = Depends(get_current_user)) -> dict:
     if batch_id:
         tasks = task_store.get_tasks_by_batch(batch_id)
+        # Filter by user if batch belongs to user
+        tasks = [t for t in tasks if t.get("user_id") == user.id]
     else:
-        tasks = task_store.get_all_tasks()
+        tasks = task_store.get_all_tasks(user_id=user.id)
 
     return {"tasks": tasks, "total": len(tasks)}
 
@@ -372,7 +383,11 @@ async def list_tasks(batch_id: Optional[str] = None) -> dict:
     "/tasks/{task_id}",
     summary="Delete a single task",
 )
-async def delete_task(task_id: str) -> dict:
+async def delete_task(task_id: str, user: User = Depends(get_current_user)) -> dict:
+    task = task_store.get_task(task_id)
+    if not task or task.get("user_id") != user.id:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
+    
     success = task_store.delete_task(task_id)
     if not success:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
@@ -383,8 +398,8 @@ async def delete_task(task_id: str) -> dict:
     "/tasks",
     summary="Delete all tasks (clear history)",
 )
-async def clear_tasks() -> dict:
-    task_store.clear_all_tasks()
+async def clear_tasks(user: User = Depends(get_current_user)) -> dict:
+    task_store.clear_all_tasks(user_id=user.id)
     return {"status": "cleared"}
 
 
@@ -395,8 +410,8 @@ async def clear_tasks() -> dict:
     response_model=QueueStatusResponse,
     summary="Current queue depth and worker stats",
 )
-async def get_queue_status() -> QueueStatusResponse:
-    stats = task_store.get_queue_stats()
+async def get_queue_status(user: User = Depends(get_current_user)) -> QueueStatusResponse:
+    stats = task_store.get_queue_stats(user_id=user.id)
     return QueueStatusResponse(**stats)
 
 
@@ -407,9 +422,9 @@ async def get_queue_status() -> QueueStatusResponse:
     response_model=BatchStatusResponse,
     summary="Aggregate status of a batch",
 )
-async def get_batch_status(batch_id: str) -> BatchStatusResponse:
+async def get_batch_status(batch_id: str, user: User = Depends(get_current_user)) -> BatchStatusResponse:
     batch = batch_store.get_batch(batch_id)
-    if not batch:
+    if not batch or batch.get("user_id") != user.id:
         raise HTTPException(status_code=404, detail=f"Batch '{batch_id}' not found")
 
     tasks = task_store.get_tasks_by_batch(batch_id)
@@ -443,8 +458,8 @@ async def get_batch_status(batch_id: str) -> BatchStatusResponse:
 
 
 @router.get("/batches", summary="List all batches")
-async def list_batches() -> dict:
-    return {"batches": batch_store.get_all_batches()}
+async def list_batches(user: User = Depends(get_current_user)) -> dict:
+    return {"batches": batch_store.get_all_batches(user_id=user.id)}
 
 
 @router.get(

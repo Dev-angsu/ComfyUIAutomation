@@ -116,8 +116,9 @@ export const TaskList: React.FC = () => {
       : `http://localhost:8000${foundPath.startsWith("/") ? "" : "/"}${foundPath}`;
 
     // Use the unique task.id to bypass disk cache for identically named files
+    const token = localStorage.getItem("token");
     const separator = baseUrl.includes("?") ? "&" : "?";
-    return `${baseUrl}${separator}cb=${task.id}`;
+    return `${baseUrl}${separator}cb=${task.id}${token ? `&token=${token}` : ""}`;
   };
 
   useEffect(() => {

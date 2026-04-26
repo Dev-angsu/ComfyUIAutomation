@@ -30,12 +30,7 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
     const fetchGallery = async () => {
       try {
         // Using standard fetch explicitly to pass pagination parameters
-        const response = await fetch(
-          `${API_ROOT}/api/gallery?page=${page}&page_size=${pageSize}&cb=${Date.now()}`,
-        );
-        if (!response.ok) throw new Error("Failed to fetch gallery");
-
-        const data = await response.json();
+        const data = await apiClient.getGallery(page, pageSize);
         setImages(data.images || []);
 
         if (pendingNavRef.current === "prev" && data.images?.length > 0) {
@@ -110,8 +105,9 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
     if (!seenUrls.current[baseUrl]) {
       seenUrls.current[baseUrl] = Date.now();
     }
+    const token = localStorage.getItem("token");
     const separator = baseUrl.includes("?") ? "&" : "?";
-    return `${baseUrl}${separator}cb=${seenUrls.current[baseUrl]}`;
+    return `${baseUrl}${separator}cb=${seenUrls.current[baseUrl]}${token ? `&token=${token}` : ""}`;
   };
 
   const handleRecreate = async (img: any) => {

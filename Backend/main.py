@@ -22,9 +22,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from adapters.comfy_client import comfy_adapter
-from api import dictionaries, gallery, generate, models_list, chat_proxy
+from api import dictionaries, gallery, generate, models_list, chat_proxy, auth
 from api import websockets as ws_routes
 from config import settings
+from core.database import init_db
 from workers.queue_worker import generation_worker
 
 # ── Logging ────────────────────────────────────────────────────────────────────
@@ -55,6 +56,10 @@ async def lifespan(app: FastAPI):
     logger.info(f"  Frontend CORS  : {settings.frontend_url}")
     logger.info(f"  Jobs directory : {settings.jobs_dir}")
     logger.info("=" * 60)
+
+    # Initialize Database
+    init_db()
+    logger.info("✅ Database initialized")
 
     # Start the persistent ComfyUI WebSocket listener
     await comfy_adapter.start_ws_listener()
@@ -116,6 +121,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # ── Routers ────────────────────────────────────────────────────────────────────
 
+app.include_router(auth.router)
 app.include_router(generate.router)
 app.include_router(dictionaries.router)
 app.include_router(gallery.router)
@@ -126,7 +132,7 @@ app.include_router(ws_routes.router)
 
 # ── Core Endpoints ─────────────────────────────────────────────────────────────
 
-@app.get("/health", tags=["System"])
+@app.get("/api/health", tags=["System"])
 async def health_check() -> dict:
     """
     Simple health check endpoint.

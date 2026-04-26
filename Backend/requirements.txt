@@ -14,8 +14,13 @@ websockets>=12.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 
-# File upload support
+# File upload & Authentication
 python-multipart>=0.0.9
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+# Database
+sqlalchemy>=2.0.0
 
 # Async file I/O
 aiofiles>=23.0.0
