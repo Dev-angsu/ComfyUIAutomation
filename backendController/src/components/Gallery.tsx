@@ -24,6 +24,7 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
   const seenUrls = useRef<Record<string, number>>({});
   const lastTotal = useRef<number>(0);
   const pendingNavRef = useRef<"prev" | "next" | null>(null);
+  const isDragging = useRef(false);
 
   useEffect(() => {
     const fetchGallery = async () => {
@@ -290,11 +291,25 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
       {selectedImage && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black animate-in fade-in duration-300"
-          onClick={() => setSelectedImage(null)}
+          onClick={() => {
+            if (!isDragging.current) {
+              setSelectedImage(null);
+            }
+          }}
         >
           {/* Fullscreen Background Image */}
           <div className="absolute inset-0 flex items-center justify-center bg-zinc-950 overflow-hidden">
-            <TransformWrapper initialScale={1} minScale={0.5} maxScale={5} centerOnInit={true} limitToBounds={false}>
+            <TransformWrapper 
+              initialScale={1} 
+              minScale={0.5} 
+              maxScale={5} 
+              centerOnInit={true} 
+              limitToBounds={false}
+              onPanningStart={() => { isDragging.current = true; }}
+              onPanningStop={() => { setTimeout(() => { isDragging.current = false; }, 100); }}
+              onZoomStart={() => { isDragging.current = true; }}
+              onZoomStop={() => { setTimeout(() => { isDragging.current = false; }, 100); }}
+            >
               <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }} contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <img
                   src={getImageUrl(selectedImage)}
@@ -304,6 +319,7 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
                     e.currentTarget.classList.add("opacity-100", "scale-100");
                   }}
                   className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl border border-white/10 opacity-0 scale-95 transition-all duration-500 ease-out select-none"
+                  onClick={(e) => e.stopPropagation()}
                 />
               </TransformComponent>
             </TransformWrapper>

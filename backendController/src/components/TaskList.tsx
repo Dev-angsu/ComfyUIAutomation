@@ -313,6 +313,46 @@ export const TaskList: React.FC = () => {
             </div>
 
             <div className="p-6 overflow-y-auto flex flex-col gap-4 text-sm text-zinc-300">
+              {(selectedTask.status === "DONE" ||
+                selectedTask.status === "COMPLETED") && (
+                <div className="flex flex-col gap-1 mb-4">
+                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                    Output Image
+                  </span>
+                  {getTaskImageUrl(selectedTask) ? (
+                    <img
+                      src={getTaskImageUrl(selectedTask)}
+                      alt="Generated Output"
+                      onLoad={(e) => {
+                        e.currentTarget.classList.remove(
+                          "opacity-0",
+                          "blur-sm",
+                        );
+                        e.currentTarget.classList.add("opacity-100", "blur-0");
+                      }}
+                      className="w-full max-h-80 object-contain rounded border border-zinc-800 bg-black/30 mt-2 opacity-0 blur-sm transition-all duration-500 ease-out"
+                    />
+                  ) : (
+                    <div className="bg-black/30 p-3 rounded border border-zinc-800 font-mono text-xs text-zinc-500 mt-2">
+                      Image URL not found in task payload.
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-zinc-400 hover:text-zinc-300">
+                          View Raw Task Data
+                        </summary>
+                        <pre className="mt-2 overflow-x-auto text-[10px] text-zinc-600 bg-black/50 p-2 rounded">
+                          {JSON.stringify(
+                            selectedTask.result || selectedTask,
+                            null,
+                            2,
+                          )}
+                        </pre>
+                      </details>
+                    </div>
+                  )}
+                  <div className="mt-6 border-b border-zinc-800/50 pb-2"></div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <ModalField label="Task ID" value={selectedTask.id} isMono />
                 <ModalField label="Status" value={selectedTask.status} />
@@ -391,44 +431,6 @@ export const TaskList: React.FC = () => {
                 </div>
               )}
 
-              {(selectedTask.status === "DONE" ||
-                selectedTask.status === "COMPLETED") && (
-                <div className="flex flex-col gap-1 mt-4 border-t border-zinc-800/50 pt-4">
-                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                    Output Image
-                  </span>
-                  {getTaskImageUrl(selectedTask) ? (
-                    <img
-                      src={getTaskImageUrl(selectedTask)}
-                      alt="Generated Output"
-                      onLoad={(e) => {
-                        e.currentTarget.classList.remove(
-                          "opacity-0",
-                          "blur-sm",
-                        );
-                        e.currentTarget.classList.add("opacity-100", "blur-0");
-                      }}
-                      className="w-full max-h-80 object-contain rounded border border-zinc-800 bg-black/30 mt-2 opacity-0 blur-sm transition-all duration-500 ease-out"
-                    />
-                  ) : (
-                    <div className="bg-black/30 p-3 rounded border border-zinc-800 font-mono text-xs text-zinc-500">
-                      Image URL not found in task payload.
-                      <details className="mt-2">
-                        <summary className="cursor-pointer text-zinc-400 hover:text-zinc-300">
-                          View Raw Task Data
-                        </summary>
-                        <pre className="mt-2 overflow-x-auto text-[10px] text-zinc-600 bg-black/50 p-2 rounded">
-                          {JSON.stringify(
-                            selectedTask.result || selectedTask,
-                            null,
-                            2,
-                          )}
-                        </pre>
-                      </details>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         </div>
