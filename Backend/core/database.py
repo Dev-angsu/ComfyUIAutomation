@@ -63,6 +63,8 @@ class Task(Base):
     error = Column(Text, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
 
     owner = relationship("User", back_populates="tasks")
     batch = relationship("Batch", back_populates="tasks")

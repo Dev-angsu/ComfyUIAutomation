@@ -131,6 +131,18 @@ export const TaskList: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const formatDateTime = (dateStr: string | null) => {
+    if (!dateStr) return "N/A";
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return "N/A";
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + 
+             " (" + date.toLocaleDateString() + ")";
+    } catch (e) {
+      return "N/A";
+    }
+  };
+
   // Pagination logic
   const totalPages = Math.ceil(filteredTasks.length / tasksPerPage) || 1;
   const validPage = Math.min(currentPage, totalPages); // Ensure we don't land on an empty out-of-bounds page
@@ -390,6 +402,14 @@ export const TaskList: React.FC = () => {
                   label="Comfy Prompt ID"
                   value={selectedTask.comfy_prompt_id || "Pending"}
                   isMono
+                />
+                <ModalField
+                  label="Started At"
+                  value={formatDateTime(selectedTask.started_at)}
+                />
+                <ModalField
+                  label="Completed At"
+                  value={formatDateTime(selectedTask.completed_at)}
                 />
               </div>
 

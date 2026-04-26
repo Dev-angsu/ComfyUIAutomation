@@ -25,3 +25,39 @@ Add an indicator that shows a loading spinner state whenever anything is being l
 Add the functionality to delete presently added queue items, both in the UI and in the python backend
 Can we add a "Clear Entire Queue" button that deletes all QUEUED tasks at once?
 The delete button or clear queue isnt working?
+
+
+# Implementation Plan: Round-Robin Fair Scheduling
+
+## Goal
+Modify the generation worker to alternate between users, ensuring that no single user can monopolize the GPU with a large batch.
+
+## Proposed Changes
+
+### [MODIFY] [queue_worker.py](file:///c:/Users/Debus/OneDrive/Desktop/ComfyUIAutomation/Backend/workers/queue_worker.py)
+
+1.  **Define `FairQueue` class**:
+    - Manage a dictionary of `asyncio.Queue` objects keyed by `user_id`.
+    - Maintain a list of active users with pending tasks.
+    - Implement `put(user_id, task_id)` and `get()` with round-robin logic.
+
+2.  **Update `enqueue_generation_task`**:
+    - Change it to call `generation_queue.put(user_id, task_id)`.
+
+3.  **Update `generation_worker`**:
+    - The worker loop remains largely the same, but it will now receive tasks in a fair order from the new `FairQueue`.
+
+## Verification Plan
+
+### Automated/Manual Testing
+1.  **Simulate Multi-User Load**:
+    - Use two different accounts (User A and User B).
+    - User A starts a batch of 10 images.
+    - While User A is processing, User B starts 1 image.
+    - **Expected Result**: User B's image should start immediately after the currently processing image of User A finishes, effectively "cutting in line" ahead of User A's remaining 9 images.
+
+
+Maintain the name of the picture saved in the output folder in comfy ui as per the character name in the batch upload file
+
+Can we make the picture save location to a default location on the system rather than in comfy ui's output folder?
+

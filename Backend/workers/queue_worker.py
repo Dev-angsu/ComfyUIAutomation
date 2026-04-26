@@ -2,8 +2,8 @@ import asyncio
 import logging
 import random
 import json
+from datetime import datetime
 from typing import Any, Optional
-
 from adapters.comfy_client import comfy_adapter
 from config import settings
 from core.prompt_engine import build_negative_prompt
@@ -141,6 +141,8 @@ class TaskStore:
             "images": json.loads(task.images_json) if task.images_json else [],
             "error": task.error,
             "user_id": task.user_id,
+            "started_at": task.started_at.isoformat() if task.started_at else None,
+            "completed_at": task.completed_at.isoformat() if task.completed_at else None,
         }
 
     # ── Pub/Sub for WebSocket streaming ────────────────────────────────────────
@@ -225,19 +227,75 @@ class BatchStore:
             ]
 
 
+# ── Fair Round-Robin Queue ────────────────────────────────────────────────────
+
+class FairQueue:
+    """
+    Asynchronous queue that alternates between users to ensure fairness.
+    Prevents one user from blocking others with large batches.
+    """
+    def __init__(self):
+        # user_id -> list of task_id
+        self._queues: dict[int, list[str]] = {}
+        self._users: list[int] = [] # Order of users for round-robin
+        self._current_user_idx = 0
+        self._condition = asyncio.Condition()
+
+    async def put(self, user_id: int, task_id: str) -> None:
+        async with self._condition:
+            if user_id not in self._queues:
+                self._queues[user_id] = []
+                self._users.append(user_id)
+            
+            self._queues[user_id].append(task_id)
+            self._condition.notify_all()
+
+    async def get(self) -> str:
+        async with self._condition:
+            while not self._users:
+                await self._condition.wait()
+            
+            # Find next user who actually has tasks
+            while True:
+                user_id = self._users[self._current_user_idx]
+                user_queue = self._queues[user_id]
+                
+                if user_queue:
+                    task_id = user_queue.pop(0)
+                    # Move pointer to next user for next request
+                    self._current_user_idx = (self._current_user_idx + 1) % len(self._users)
+                    return task_id
+                else:
+                    # Cleanup empty user queue
+                    self._users.pop(self._current_user_idx)
+                    del self._queues[user_id]
+                    
+                    if not self._users:
+                        self._current_user_idx = 0
+                        # Wait if we just emptied the last user queue
+                        while not self._users:
+                            await self._condition.wait()
+                    else:
+                        self._current_user_idx %= len(self._users)
+
+    def task_done(self):
+        # Compatibility with standard asyncio.Queue if needed
+        pass
+
 # ── Module-level singletons ───────────────────────────────────────────────────
 
 task_store = TaskStore()
 batch_store = BatchStore()
-generation_queue: asyncio.Queue = asyncio.Queue()
+generation_queue = FairQueue()
 
 
 # ── Public Enqueue API ────────────────────────────────────────────────────────
 
 async def enqueue_generation_task(task_id: str, task_data: dict[str, Any]) -> None:
     task_store.create_task(task_id, task_data)
-    await generation_queue.put(task_id)
-    logger.info(f"Enqueued task: {task_id} (user_id={task_data.get('user_id')})")
+    user_id = task_data.get("user_id", 0)
+    await generation_queue.put(user_id, task_id)
+    logger.info(f"Enqueued task: {task_id} (user_id={user_id})")
 
 
 # ── Worker Internals ──────────────────────────────────────────────────────────
@@ -249,10 +307,12 @@ async def _run_single_task(task_id: str) -> None:
         return
 
     # Transition to EXECUTING
-    task_store.update_task(task_id, status=TaskStatus.EXECUTING)
+    started_at = datetime.utcnow()
+    task_store.update_task(task_id, status=TaskStatus.EXECUTING, started_at=started_at)
     await task_store.publish(task_id, {
         "type": "status_change",
         "status": TaskStatus.EXECUTING,
+        "started_at": started_at.isoformat(),
     })
 
     try:
@@ -326,17 +386,20 @@ async def _run_single_task(task_id: str) -> None:
                         "url": f"/api/images/{fname}?subfolder={subfolder}&type={img_type}",
                     })
 
+            completed_at = datetime.utcnow()
             task_store.update_task(
                 task_id,
                 status=TaskStatus.DONE,
                 images=images,
                 seed=seed,
+                completed_at=completed_at,
             )
             await task_store.publish(task_id, {
                 "type": "completed",
                 "images": images,
                 "seed": seed,
                 "task_id": task_id,
+                "completed_at": completed_at.isoformat(),
             })
 
             batch_id = task.get("batch_id")
@@ -358,9 +421,15 @@ async def _run_single_task(task_id: str) -> None:
 
 
 def _fail_task(task_id: str, reason: str) -> None:
-    task_store.update_task(task_id, status=TaskStatus.ERROR, error=reason)
+    completed_at = datetime.utcnow()
+    task_store.update_task(task_id, status=TaskStatus.ERROR, error=reason, completed_at=completed_at)
     asyncio.create_task(
-        task_store.publish(task_id, {"type": "error", "message": reason, "task_id": task_id})
+        task_store.publish(task_id, {
+            "type": "error", 
+            "message": reason, 
+            "task_id": task_id,
+            "completed_at": completed_at.isoformat()
+        })
     )
     logger.error(f"Task {task_id} failed: {reason}")
 

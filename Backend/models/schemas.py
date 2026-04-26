@@ -8,6 +8,7 @@ Follows Interface Segregation Principle: components receive only what they need.
 from __future__ import annotations
 
 from enum import Enum
+from datetime import datetime
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field
@@ -128,6 +129,8 @@ class TaskStatusResponse(BaseModel):
     images: Optional[list[dict[str, Any]]] = None
     error: Optional[str] = None
     last_event: Optional[dict[str, Any]] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
 
 
 class ImageInfo(BaseModel):
