@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useLocalStorage } from "../lib/useLocalStorage";
+import { useSettings } from "../lib/settings-context";
+import { apiClient } from "../lib/api-client";
 
 interface Message {
   role: "system" | "user" | "assistant";
@@ -12,10 +14,22 @@ export function ChatApp() {
   const [modelId, setModelId] = useLocalStorage<string>("dnd_lmstudio_model", "local-model");
   const [storyType, setStoryType] = useLocalStorage<string>("dnd_story_type", "Dark Fantasy 5e");
 
+  const { settings } = useSettings();
+  const [isGeneratingImagery, setIsGeneratingImagery] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-hide toast after 5 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -164,8 +178,105 @@ export function ChatApp() {
     }
   };
 
+  const handleCreateImagery = async () => {
+    if (messages.length === 0 || isGeneratingImagery) return;
+
+    setIsGeneratingImagery(true);
+    try {
+      // 1. Fetch prompt guidelines from backend
+      const { content: guidelines } = await apiClient.getPromptGuidelines();
+      
+      // 2. Get last 6 messages (environment details)
+      const lastMessages = messages.slice(-6).map(m => `${m.role.toUpperCase()}: ${m.content}`).join("\n");
+      
+      // 3. Construct meta-prompt according to instructions
+      const metaPrompt = `Create a single prompt for creating an image based on this environment [${lastMessages}] from these recommendation of how to write the prompt(give only the single prompt - no other text, give the final prompt dont leave any placeholder for me to fill) : [${guidelines}]`;
+
+      // 4. Request refined image prompt from LLM (via proxy)
+      const proxyUrl = `http://${window.location.hostname}:8000/api/chat/proxy`;
+      const response = await fetch(proxyUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target_url: apiUrl,
+          payload: {
+            model: modelId,
+            messages: [{ role: "user", content: metaPrompt }],
+            temperature: 0.3,
+            stream: false
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.detail || response.statusText);
+      }
+
+      const data = await response.json();
+      const generatedPrompt = data.choices?.[0]?.message?.content?.trim();
+
+      if (!generatedPrompt) {
+        throw new Error("The LLM did not return a valid prompt. Please try again.");
+      }
+
+      // 5. Dispatch generation job to Studio
+      const res = await apiClient.generateSingle({
+        positive_prompt: generatedPrompt,
+        params: {
+          width: settings.width,
+          height: settings.height,
+          steps: settings.steps,
+          workflow: settings.workflow
+        }
+      });
+
+      // 6. Notify user via Toast
+      setToast({
+        type: "success",
+        message: `Imagery Generation Dispatched! Task ID: ${res.task_id.substring(0, 8)}...`
+      });
+
+    } catch (error: any) {
+      console.error("Imagery Creation Error:", error);
+      setToast({
+        type: "error",
+        message: error.message
+      });
+    } finally {
+      setIsGeneratingImagery(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-zinc-900/50 rounded-2xl border border-zinc-800 overflow-hidden shadow-2xl relative">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-500 ease-out animate-in fade-in slide-in-from-top-4">
+          <div className={`px-6 py-3 rounded-2xl shadow-2xl border backdrop-blur-xl flex items-center gap-3 ${
+            toast.type === 'success' 
+              ? 'bg-zinc-900/90 border-emerald-500/30 text-emerald-400 shadow-emerald-500/10' 
+              : 'bg-zinc-900/90 border-red-500/30 text-red-400 shadow-red-500/10'
+          }`}>
+            <div className={`p-1.5 rounded-lg ${toast.type === 'success' ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round">
+                {toast.type === 'success' ? <polyline points="20 6 9 17 4 12"></polyline> : (
+                  <>
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </>
+                )}
+              </svg>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-zinc-100">{toast.type === 'success' ? 'Success' : 'Error'}</span>
+              <span className="text-xs text-zinc-400">{toast.message}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900/80 shrink-0">
         <div className="flex items-center gap-3">
@@ -175,6 +286,23 @@ export function ChatApp() {
           <h2 className="text-lg font-semibold text-zinc-100">Stories</h2>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleCreateImagery}
+            disabled={messages.length === 0 || isGeneratingImagery}
+            className="text-xs font-medium text-indigo-400 hover:text-indigo-300 px-3 py-1.5 rounded-lg hover:bg-indigo-500/10 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Create Imagery based on current environment"
+          >
+            {isGeneratingImagery ? (
+              <div className="w-3.5 h-3.5 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+            )}
+            {isGeneratingImagery ? "Creating..." : "Create Imagery"}
+          </button>
           <input
             type="file"
             accept=".json"

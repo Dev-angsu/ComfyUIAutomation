@@ -40,3 +40,8 @@ You can put quality / artist tags at the beginning of a natural language prompt.
 Name a character, then describe their basic appearance.
 "Digital artwork of Fern from Sousou no Frieren, with long purple hair and purple eyes, wearing a black coat over a white dress with puffy sleeves..."
 This is extra important when prompting for multiple characters. If you just list off character names with no description of appearance, the model can get confused.
+
+
+
+Create a single prompt for creating an image based on this environment[environment details - this is from the localHost stored chat message but last 6 chat messages only] from these recommendation of how to write the prompt(give only the single prompt - no other text, give the final prompt dont leave any placeholder for me to fill) : [prompt.txt - this is the guidelines] 
+

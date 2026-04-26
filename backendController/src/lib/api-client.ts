@@ -159,4 +159,13 @@ export const apiClient = {
     if (!response.ok) throw new Error("Failed to fetch app config");
     return response.json();
   },
+
+  async getPromptGuidelines(): Promise<{ content: string }> {
+    const response = await fetch(`${API_BASE}/prompts/guidelines`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw new Error("Failed to fetch prompt guidelines");
+    return response.json();
+  },
 };

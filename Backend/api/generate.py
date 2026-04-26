@@ -472,3 +472,23 @@ async def get_app_config() -> AppSettings:
         available_workflows=available_workflows,
         default_workflow="anima.json" if "anima.json" in available_workflows else (available_workflows[0] if available_workflows else "anima.json")
     )
+
+
+@router.get("/prompts/guidelines", summary="Get prompt guidelines from prompt.txt")
+async def get_prompt_guidelines() -> dict:
+    """
+    Reads the content of Jobs/prompt.txt and returns it.
+    Used by the frontend to construct LLM prompts for image generation.
+    """
+    path = Path(settings.jobs_dir) / "prompt.txt"
+    if not path.exists():
+        logger.warning(f"prompt.txt not found at {path}")
+        return {"content": ""}
+    
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return {"content": content}
+    except Exception as e:
+        logger.error(f"Error reading prompt.txt: {e}")
+        raise HTTPException(status_code=500, detail=f"Error reading prompt.txt: {str(e)}")
