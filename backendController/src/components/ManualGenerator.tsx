@@ -3,26 +3,27 @@ import { apiClient } from "../lib/api-client";
 import { useSettings } from "../lib/settings-context";
 import { useToast } from "../lib/toast-context";
 
-export const ManualGenerator: React.FC = () => {
-  const AutoResizeTextarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { minHeight?: string }) => {
-    const ref = useRef<HTMLTextAreaElement>(null);
-    useEffect(() => {
-      if (ref.current) {
-        ref.current.style.height = "auto";
-        ref.current.style.height = ref.current.scrollHeight + "px";
-      }
-    }, [props.value]);
+const AutoResizeTextarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { minHeight?: string }) => {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.style.height = "auto";
+      ref.current.style.height = ref.current.scrollHeight + "px";
+    }
+  }, [props.value]);
 
-    const { minHeight, className, ...rest } = props;
-    return (
-      <textarea
-        ref={ref}
-        {...rest}
-        style={{ minHeight: minHeight || "80px" }}
-        className={`${className} overflow-hidden resize-none`}
-      />
-    );
-  };
+  const { minHeight, className, ...rest } = props;
+  return (
+    <textarea
+      ref={ref}
+      {...rest}
+      style={{ minHeight: minHeight || "80px" }}
+      className={`${className} overflow-hidden resize-none`}
+    />
+  );
+};
+
+export const ManualGenerator: React.FC = () => {
 
   const { addToast } = useToast();
   const { settings, updateSettings } = useSettings();
