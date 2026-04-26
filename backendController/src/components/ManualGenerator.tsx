@@ -1,9 +1,29 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { apiClient } from "../lib/api-client";
 import { useSettings } from "../lib/settings-context";
 import { useToast } from "../lib/toast-context";
 
 export const ManualGenerator: React.FC = () => {
+  const AutoResizeTextarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { minHeight?: string }) => {
+    const ref = useRef<HTMLTextAreaElement>(null);
+    useEffect(() => {
+      if (ref.current) {
+        ref.current.style.height = "auto";
+        ref.current.style.height = ref.current.scrollHeight + "px";
+      }
+    }, [props.value]);
+
+    const { minHeight, className, ...rest } = props;
+    return (
+      <textarea
+        ref={ref}
+        {...rest}
+        style={{ minHeight: minHeight || "80px" }}
+        className={`${className} overflow-hidden resize-none`}
+      />
+    );
+  };
+
   const { addToast } = useToast();
   const { settings, updateSettings } = useSettings();
   const [loading, setLoading] = useState(false);
@@ -49,9 +69,9 @@ export const ManualGenerator: React.FC = () => {
         <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
           Positive Prompt
         </label>
-        <textarea
-          rows={4}
-          className="bg-black/40 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all resize-none font-mono"
+        <AutoResizeTextarea
+          minHeight="100px"
+          className="bg-black/40 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all font-mono"
           value={settings.positivePrompt}
           onChange={(e) => updateSettings({ positivePrompt: e.target.value })}
         />
@@ -61,9 +81,9 @@ export const ManualGenerator: React.FC = () => {
         <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
           Negative Prompt
         </label>
-        <textarea
-          rows={2}
-          className="bg-black/40 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all resize-none font-mono"
+        <AutoResizeTextarea
+          minHeight="60px"
+          className="bg-black/40 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all font-mono"
           value={settings.negativePrompt}
           onChange={(e) => updateSettings({ negativePrompt: e.target.value })}
         />

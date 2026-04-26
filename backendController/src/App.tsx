@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { QueueMonitor } from "./components/QueueMonitor";
-import { ManualGenerator } from "./components/ManualGenerator";
 import { TaskList } from "./components/TaskList";
-import { BatchUploader } from "./components/BatchUploader";
-import { DynamicPipelineUploader } from "./components/DynamicPipelineUploader";
 import { Gallery } from "./components/Gallery";
 import { SettingsProvider } from "./lib/settings-context";
 import { ToastProvider } from "./lib/toast-context";
-import { GenerationSettings } from "./components/GenerationSettings";
 import { ChatApp } from "./components/ChatApp";
+import { StudioWorkspace } from "./components/StudioWorkspace";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<
@@ -205,17 +201,9 @@ export default function App() {
           {/* Scrollable Page Content */}
           <main className="flex-1 overflow-y-auto p-8">
             <div
-              className={`max-w-7xl mx-auto gap-8 ${activeTab === "studio" ? "grid grid-cols-1 lg:grid-cols-12" : "hidden"}`}
+              className={`max-w-7xl mx-auto ${activeTab === "studio" ? "flex flex-col" : "hidden"}`}
             >
-              <div className="lg:col-span-8 flex flex-col gap-6">
-                <ManualGenerator />
-                <BatchUploader />
-                <DynamicPipelineUploader />
-              </div>
-              <div className="lg:col-span-4 flex flex-col gap-6">
-                <GenerationSettings />
-                <QueueMonitor />
-              </div>
+              <StudioWorkspace />
             </div>
 
             <div

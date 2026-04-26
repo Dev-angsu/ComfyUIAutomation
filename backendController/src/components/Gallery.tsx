@@ -17,6 +17,7 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
   // Cache busting tracking
   const seenUrls = useRef<Record<string, number>>({});
   const lastTotal = useRef<number>(0);
+  const pendingNavRef = useRef<"prev" | "next" | null>(null);
 
   useEffect(() => {
     const fetchGallery = async () => {
@@ -29,6 +30,13 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
 
         const data = await response.json();
         setImages(data.images || []);
+
+        if (pendingNavRef.current === "prev" && data.images?.length > 0) {
+          setSelectedImage(data.images[data.images.length - 1]);
+        } else if (pendingNavRef.current === "next" && data.images?.length > 0) {
+          setSelectedImage(data.images[0]);
+        }
+        pendingNavRef.current = null;
 
         if (data.total !== undefined) {
           // Detect history reset to bust cache for overlapping filenames
@@ -58,10 +66,31 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
       if (e.key === "Escape") {
         setSelectedImage(null);
       }
+      
+      if (!selectedImage) return;
+
+      const currentIndex = images.findIndex((img) => img.filename === selectedImage.filename);
+      if (currentIndex === -1) return;
+
+      if (e.key === "ArrowLeft") {
+        if (currentIndex > 0) {
+          setSelectedImage(images[currentIndex - 1]);
+        } else if (page > 1) {
+          pendingNavRef.current = "prev";
+          setPage(page - 1);
+        }
+      } else if (e.key === "ArrowRight") {
+        if (currentIndex < images.length - 1) {
+          setSelectedImage(images[currentIndex + 1]);
+        } else if (page < totalPages) {
+          pendingNavRef.current = "next";
+          setPage(page + 1);
+        }
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [images, selectedImage, page, totalPages]);
 
   const getImageUrl = (img: any) => {
     const path = img.url || img.file_path || "";
