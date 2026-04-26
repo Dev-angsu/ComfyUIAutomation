@@ -28,22 +28,27 @@ export const ManualGenerator: React.FC = () => {
   const { settings, updateSettings } = useSettings();
   const [loading, setLoading] = useState(false);
   const [lastTask, setLastTask] = useState<string | null>(null);
+  const [batchCount, setBatchCount] = useState(1);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await apiClient.generateSingle({
-        positive_prompt: settings.positivePrompt,
-        negative_prompt: settings.negativePrompt,
-        params: { 
-          width: settings.width, 
-          height: settings.height, 
-          steps: settings.steps,
-          workflow: settings.workflow 
-        },
-      });
-      setLastTask(res.task_id);
+      const promises = Array.from({ length: batchCount }).map(() =>
+        apiClient.generateSingle({
+          positive_prompt: settings.positivePrompt,
+          negative_prompt: settings.negativePrompt,
+          params: { 
+            width: settings.width, 
+            height: settings.height, 
+            steps: settings.steps,
+            workflow: settings.workflow 
+          },
+        })
+      );
+      const results = await Promise.all(promises);
+      setLastTask(results[results.length - 1].task_id);
+      addToast(`Successfully queued ${batchCount} task${batchCount > 1 ? "s" : ""}.`, "success");
     } catch (err) {
       addToast("Failed to dispatch job. Check console.", "error");
     } finally {
@@ -93,13 +98,28 @@ export const ManualGenerator: React.FC = () => {
         <div className="text-xs text-emerald-400 font-mono">
           {lastTask ? `✓ Dispatched: ${lastTask.substring(0, 8)}...` : ""}
         </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium py-2.5 px-6 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(79,70,229,0.15)]"
-        >
-          {loading ? "Queuing..." : "Generate Image"}
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+              Batch
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={batchCount}
+              onChange={(e) => setBatchCount(Number(e.target.value))}
+              className="bg-black/40 border border-zinc-800 rounded-lg p-2 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500/50 w-16 text-center"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium py-2.5 px-6 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(79,70,229,0.15)]"
+          >
+            {loading ? "Queuing..." : "Generate"}
+          </button>
+        </div>
       </div>
     </form>
   );

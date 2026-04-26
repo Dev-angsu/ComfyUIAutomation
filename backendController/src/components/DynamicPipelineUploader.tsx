@@ -34,6 +34,7 @@ export const DynamicPipelineUploader: React.FC = () => {
       setLastBatch(res.batch_id);
       setSelectedFile(null); // Clear after success
       if (fileInputRef.current) fileInputRef.current.value = "";
+      addToast("Dynamic pipeline enqueued successfully!", "success");
     } catch (err) {
       console.error(err);
       addToast("Failed to upload JSON batch. Check backend console.", "error");

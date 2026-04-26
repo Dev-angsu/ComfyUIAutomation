@@ -2,6 +2,9 @@ import React, { useEffect, useState, useRef } from "react";
 import { apiClient } from "../lib/api-client";
 import { useToast } from "../lib/toast-context";
 import { useSettings } from "../lib/settings-context";
+import JSZip from "jszip";
+import saveAs from "file-saver";
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
 const API_ROOT = `http://${window.location.hostname}:8000`; // Dynamically use the correct host
 
@@ -13,6 +16,9 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 24; // Divisible by 2, 3, 4, and 6 for cleaner CSS grid rows
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
+  const [downloading, setDownloading] = useState(false);
 
   // Cache busting tracking
   const seenUrls = useRef<Record<string, number>>({});
@@ -141,8 +147,98 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
     }
   };
 
+  const handleBulkDownload = async (imagesToDownload: any[]) => {
+    if (imagesToDownload.length === 0) return;
+    setDownloading(true);
+    try {
+      const zip = new JSZip();
+      for (const img of imagesToDownload) {
+        const url = getImageUrl(img) + "&download=true";
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Fetch failed for ${url}`);
+        const blob = await response.blob();
+        zip.file(img.filename, blob);
+      }
+      const content = await zip.generateAsync({ type: "blob" });
+      saveAs(content, `gallery-images-${Date.now()}.zip`);
+      addToast(`Successfully downloaded ${imagesToDownload.length} images.`, "success");
+      if (selectionMode) {
+        setSelectionMode(false);
+        setSelectedImages(new Set());
+      }
+    } catch (err) {
+      console.error("Bulk download error:", err);
+      addToast("Failed to download images. Check console.", "error");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const downloadSingleImage = async (img: any) => {
+    try {
+      const url = getImageUrl(img) + "&download=true";
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Fetch failed for ${url}`);
+      const blob = await response.blob();
+      saveAs(blob, img.filename);
+      addToast("Image downloaded.", "success");
+    } catch (err) {
+      console.error("Single download error:", err);
+      addToast("Failed to download image. Check console.", "error");
+    }
+  };
+
+  const toggleSelection = (filename: string) => {
+    const newSelected = new Set(selectedImages);
+    if (newSelected.has(filename)) {
+      newSelected.delete(filename);
+    } else {
+      newSelected.add(filename);
+    }
+    setSelectedImages(newSelected);
+  };
+
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => {
+              setSelectionMode(!selectionMode);
+              if (selectionMode) setSelectedImages(new Set());
+            }}
+            className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors border ${selectionMode ? "bg-indigo-600 border-indigo-500 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700"}`}
+          >
+            {selectionMode ? "Cancel Selection" : "Select Mode"}
+          </button>
+          {selectionMode && (
+             <span className="text-sm text-zinc-400">
+               {selectedImages.size} selected
+             </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {selectionMode && selectedImages.size > 0 && (
+             <button
+               onClick={() => handleBulkDownload(images.filter(img => selectedImages.has(img.filename)))}
+               disabled={downloading}
+               className="text-sm font-medium px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+             >
+               {downloading ? "Zipping..." : "Download Selected"}
+             </button>
+          )}
+          {!selectionMode && images.length > 0 && (
+             <button
+               onClick={() => handleBulkDownload(images)}
+               disabled={downloading}
+               className="text-sm font-medium px-4 py-2 bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 text-zinc-300 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+             >
+               {downloading ? "Zipping..." : "Download All (Page)"}
+             </button>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {images.length === 0 ? (
           <div className="col-span-full text-center text-zinc-500 py-12">
@@ -154,7 +250,16 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
               key={idx}
               img={img}
               getImageUrl={getImageUrl}
-              onClick={() => setSelectedImage(img)}
+              selectionMode={selectionMode}
+              isSelected={selectedImages.has(img.filename)}
+              onSelect={() => toggleSelection(img.filename)}
+              onClick={() => {
+                if (selectionMode) {
+                  toggleSelection(img.filename);
+                } else {
+                  setSelectedImage(img);
+                }
+              }}
             />
           ))
         )}
@@ -188,16 +293,20 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
           onClick={() => setSelectedImage(null)}
         >
           {/* Fullscreen Background Image */}
-          <div className="absolute inset-0 flex items-center justify-center bg-zinc-950">
-              <img
-                src={getImageUrl(selectedImage)}
-                alt="Fullscreen view"
-                onLoad={(e) => {
-                  e.currentTarget.classList.remove("opacity-0", "scale-95");
-                  e.currentTarget.classList.add("opacity-100", "scale-100");
-                }}
-                className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl border border-white/10 opacity-0 scale-95 transition-all duration-500 ease-out pointer-events-none select-none"
-              />
+          <div className="absolute inset-0 flex items-center justify-center bg-zinc-950 overflow-hidden">
+            <TransformWrapper initialScale={1} minScale={0.5} maxScale={5} centerOnInit={true} limitToBounds={false}>
+              <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }} contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <img
+                  src={getImageUrl(selectedImage)}
+                  alt="Fullscreen view"
+                  onLoad={(e) => {
+                    e.currentTarget.classList.remove("opacity-0", "scale-95");
+                    e.currentTarget.classList.add("opacity-100", "scale-100");
+                  }}
+                  className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl border border-white/10 opacity-0 scale-95 transition-all duration-500 ease-out select-none"
+                />
+              </TransformComponent>
+            </TransformWrapper>
           </div>
 
           {/* Close Button */}
@@ -279,6 +388,18 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
                       </svg>
                       {selectedImage.positive_prompt ? "Modify & Recreate" : "Metadata Missing"}
                     </button>
+
+                    <button
+                      onClick={() => downloadSingleImage(selectedImage)}
+                      className="bg-zinc-800 hover:bg-zinc-700 text-white px-8 py-4 rounded-[24px] font-bold text-sm transition-all flex items-center justify-center gap-3 active:scale-95 group border border-zinc-700"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                      </svg>
+                      Download Image
+                    </button>
                     
                     <div className="grid grid-cols-1 gap-3 bg-white/5 p-5 rounded-[24px] border border-white/5">
                        <div className="flex items-center justify-between px-2">
@@ -308,10 +429,16 @@ const ImageCard = ({
   img,
   getImageUrl,
   onClick,
+  selectionMode,
+  isSelected,
+  onSelect,
 }: {
   img: any;
   getImageUrl: (img: any) => string;
   onClick: () => void;
+  selectionMode?: boolean;
+  isSelected?: boolean;
+  onSelect?: () => void;
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const url = getImageUrl(img);
@@ -323,9 +450,24 @@ const ImageCard = ({
 
   return (
     <div
-      className="aspect-square relative group overflow-hidden rounded-xl bg-zinc-900 border border-zinc-800 cursor-pointer"
+      className={`aspect-square relative group overflow-hidden rounded-xl bg-zinc-900 border cursor-pointer transition-all ${
+        selectionMode && isSelected ? "border-indigo-500 scale-95" : "border-zinc-800 hover:border-zinc-700"
+      }`}
       onClick={onClick}
     >
+      {selectionMode && (
+        <div className="absolute top-2 right-2 z-10">
+          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+            isSelected ? "bg-indigo-500 border-indigo-500 text-white" : "border-white/50 bg-black/50"
+          }`}>
+            {isSelected && (
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            )}
+          </div>
+        </div>
+      )}
       <img
         src={url}
         alt={img.prompt || "Generated Image"}

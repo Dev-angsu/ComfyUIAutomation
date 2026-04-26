@@ -33,6 +33,7 @@ export const BatchUploader: React.FC = () => {
       setLastBatch(res.batch_id);
       setSelectedFile(null); // Clear after success
       if (fileInputRef.current) fileInputRef.current.value = "";
+      addToast("Batch job queued successfully!", "success");
     } catch (err) {
       console.error(err);
       addToast("Failed to upload batch. Check backend console.", "error");
