@@ -179,13 +179,25 @@ function MainInterface() {
 }
 
 function AuthWrapper() {
-  const { user, loading } = useAuth();
+  const { user, loading, connectionError } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
 
-  if (loading) {
+  if (loading || connectionError) {
     return (
-      <div className="h-screen bg-zinc-950 flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-zinc-700 border-t-indigo-500 rounded-full animate-spin"></div>
+      <div className="flex h-screen bg-zinc-950 items-center justify-center text-zinc-200 font-sans selection:bg-indigo-500/30">
+        <div className="flex flex-col items-center justify-center space-y-6 bg-zinc-900/50 rounded-2xl border border-zinc-800 p-10 shadow-2xl">
+          <div className="w-12 h-12 border-4 border-zinc-700 border-t-indigo-500 rounded-full animate-spin"></div>
+          <div className="text-center space-y-2">
+            <h2 className="text-xl font-medium text-zinc-200">
+              {connectionError ? "Reconnecting to AI Studio..." : "Initializing AI Studio..."}
+            </h2>
+            <p className="text-zinc-500 text-sm max-w-md mx-auto">
+              {connectionError 
+                ? "The backend is currently unreachable. Retrying connection..." 
+                : "Connecting to FastAPI and ComfyUI services."}
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

@@ -71,7 +71,11 @@ export const apiClient = {
       method: "GET",
       headers: getAuthHeaders(),
     });
-    if (!response.ok) throw new Error("Failed to fetch user profile");
+    if (!response.ok) {
+      const error = new Error("Failed to fetch user profile") as any;
+      error.status = response.status;
+      throw error;
+    }
     return response.json();
   },
 

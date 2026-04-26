@@ -13,6 +13,7 @@ interface AuthContextType {
   login: (formData: FormData) => Promise<void>;
   register: (data: any) => Promise<void>;
   logout: () => void;
+  connectionError: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,6 +21,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState(false);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -28,9 +30,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const userData = await apiClient.getMe();
           setUser(userData);
-        } catch (error) {
+        } catch (error: any) {
           console.error("Auth initialization failed", error);
-          localStorage.removeItem("token");
+          if (error.status === 401 || error.status === 403) {
+            localStorage.removeItem("token");
+            setUser(null);
+          } else {
+            setConnectionError(true);
+          }
         }
       }
       setLoading(false);
@@ -59,7 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, connectionError }}>
       {children}
     </AuthContext.Provider>
   );
