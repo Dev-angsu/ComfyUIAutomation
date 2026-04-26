@@ -6,6 +6,7 @@ import { BatchUploader } from "./components/BatchUploader";
 import { DynamicPipelineUploader } from "./components/DynamicPipelineUploader";
 import { Gallery } from "./components/Gallery";
 import { SettingsProvider } from "./lib/settings-context";
+import { ToastProvider } from "./lib/toast-context";
 import { GenerationSettings } from "./components/GenerationSettings";
 import { ChatApp } from "./components/ChatApp";
 
@@ -61,7 +62,8 @@ export default function App() {
   }
 
   return (
-    <SettingsProvider>
+    <ToastProvider>
+      <SettingsProvider>
       <div className="flex h-screen bg-zinc-950 text-zinc-200 font-sans selection:bg-indigo-500/30 overflow-hidden">
         {/* Left Navigation Pane */}
         <aside className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col shrink-0 z-20">
@@ -225,7 +227,7 @@ export default function App() {
             <div
               className={`max-w-7xl mx-auto flex-col gap-6 ${activeTab === "gallery" ? "flex" : "hidden"}`}
             >
-              <Gallery />
+              <Gallery onNavigate={(tab: "studio" | "tasks" | "gallery" | "chat") => setActiveTab(tab)} />
             </div>
 
             <div
@@ -237,6 +239,7 @@ export default function App() {
           </main>
         </div>
       </div>
-    </SettingsProvider>
+      </SettingsProvider>
+    </ToastProvider>
   );
 }

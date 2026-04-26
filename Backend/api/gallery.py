@@ -15,6 +15,7 @@ The proxy endpoint (/api/images) stays unchanged in both phases.
 """
 
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
@@ -28,13 +29,79 @@ router = APIRouter(prefix="/api", tags=["Gallery"])
 logger = logging.getLogger(__name__)
 
 
-def _make_image_info(img: dict) -> ImageInfo:
+def _make_image_info(
+    img: dict,
+    positive: Optional[str] = None,
+    negative: Optional[str] = None,
+    width: Optional[int] = None,
+    height: Optional[int] = None,
+    steps: Optional[int] = None,
+    seed: Optional[int] = None,
+    workflow: Optional[str] = None
+) -> ImageInfo:
     """Build a platform-agnostic ImageInfo from a ComfyUI history image dict."""
     fname = img["filename"]
     subfolder = img.get("subfolder", "")
     img_type = img.get("type", "output")
     url = f"/api/images/{fname}?subfolder={subfolder}&type={img_type}"
-    return ImageInfo(filename=fname, subfolder=subfolder, type=img_type, url=url)
+    return ImageInfo(
+        filename=fname,
+        subfolder=subfolder,
+        type=img_type,
+        url=url,
+        positive_prompt=positive,
+        negative_prompt=negative,
+        width=width,
+        height=height,
+        steps=steps,
+        seed=seed,
+        workflow=workflow
+    )
+
+
+def _extract_from_history(record: dict) -> dict:
+    """
+    Fallback: Extract generation metadata from the ComfyUI prompt graph.
+    Used when the local task_store (in-memory) is lost after a restart.
+    """
+    res = {}
+    try:
+        # ComfyUI history structure: record['prompt'] = [count, workflow_dict, extra]
+        prompt_data = record.get("prompt")
+        if not prompt_data:
+            return res
+
+        workflow = prompt_data[1] if isinstance(prompt_data, list) and len(prompt_data) > 1 else prompt_data
+        if not isinstance(workflow, dict):
+            return res
+
+        # Map our known node IDs (from core.workflow_builder)
+        # Positive Prompt (Node 11)
+        pos_node = workflow.get("11", {})
+        if pos_node.get("class_type") == "CLIPTextEncode":
+            res["positive_prompt"] = pos_node.get("inputs", {}).get("text")
+
+        # Negative Prompt (Node 12)
+        neg_node = workflow.get("12", {})
+        if neg_node.get("class_type") == "CLIPTextEncode":
+            res["negative_prompt"] = neg_node.get("inputs", {}).get("text")
+
+        # Dimensions (Node 28)
+        latent_node = workflow.get("28", {})
+        if latent_node.get("class_type") == "EmptyLatentImage":
+            res["width"] = latent_node.get("inputs", {}).get("width")
+            res["height"] = latent_node.get("inputs", {}).get("height")
+
+        # Sampler / Steps (Node 19)
+        ksampler_node = workflow.get("19", {})
+        if ksampler_node.get("class_type") == "KSampler":
+            res["steps"] = ksampler_node.get("inputs", {}).get("steps")
+            res["seed"] = ksampler_node.get("inputs", {}).get("seed")
+
+    except Exception as e:
+        logger.debug(f"Metadata extraction failed: {e}")
+
+    return res
 
 
 # ── Full Gallery (from ComfyUI history) ───────────────────────────────────────
@@ -63,11 +130,40 @@ async def get_gallery(
 
     all_images: list[ImageInfo] = []
 
+    # Pre-map ComfyUI prompt_ids to our local tasks for prompt retrieval
+    task_map = {
+        t.get("comfy_prompt_id"): t 
+        for t in task_store.get_all_tasks() 
+        if t.get("comfy_prompt_id")
+    }
+
     for prompt_id, record in history.items():
+        task = task_map.get(prompt_id)
+        
+        if task:
+            # Found in local task store
+            pos = task.get("positive_prompt")
+            neg = task.get("negative_prompt")
+            w = task.get("width")
+            h = task.get("height")
+            s = task.get("steps")
+            sd = task.get("seed")
+            wf = task.get("workflow")
+        else:
+            # Fallback: parse from ComfyUI history record
+            meta = _extract_from_history(record)
+            pos = meta.get("positive_prompt")
+            neg = meta.get("negative_prompt")
+            w = meta.get("width")
+            h = meta.get("height")
+            s = meta.get("steps")
+            sd = meta.get("seed")
+            wf = None  # Workflow filename isn't in history
+
         outputs = record.get("outputs", {})
         save_output = outputs.get(settings.comfy_output_node_id, {})
         for img in save_output.get("images", []):
-            all_images.append(_make_image_info(img))
+            all_images.append(_make_image_info(img, pos, neg, w, h, s, sd, wf))
 
     # Sort newest-first (ComfyUI prefixes filenames with sequential counters)
     # all_images.sort(key=lambda x: x.filename, reverse=True)
@@ -102,7 +198,15 @@ async def get_task_images(task_id: str) -> dict:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
 
     raw_images: list[dict] = task.get("images") or []
-    images = [_make_image_info(img) for img in raw_images]
+    pos = task.get("positive_prompt")
+    neg = task.get("negative_prompt")
+    w = task.get("width")
+    h = task.get("height")
+    s = task.get("steps")
+    sd = task.get("seed")
+    wf = task.get("workflow")
+    
+    images = [_make_image_info(img, pos, neg, w, h, s, sd, wf) for img in raw_images]
 
     return {
         "task_id": task_id,

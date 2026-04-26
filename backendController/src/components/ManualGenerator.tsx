@@ -1,15 +1,11 @@
 import React, { useState } from "react";
 import { apiClient } from "../lib/api-client";
 import { useSettings } from "../lib/settings-context";
+import { useToast } from "../lib/toast-context";
 
 export const ManualGenerator: React.FC = () => {
-  const [prompt, setPrompt] = useState(
-    "masterpiece, best quality, 1girl, highly detailed",
-  );
-  const [negative, setNegative] = useState(
-    "worst quality, low quality, bad anatomy",
-  );
-  const { settings } = useSettings();
+  const { addToast } = useToast();
+  const { settings, updateSettings } = useSettings();
   const [loading, setLoading] = useState(false);
   const [lastTask, setLastTask] = useState<string | null>(null);
 
@@ -18,8 +14,8 @@ export const ManualGenerator: React.FC = () => {
     setLoading(true);
     try {
       const res = await apiClient.generateSingle({
-        positive_prompt: prompt,
-        negative_prompt: negative,
+        positive_prompt: settings.positivePrompt,
+        negative_prompt: settings.negativePrompt,
         params: { 
           width: settings.width, 
           height: settings.height, 
@@ -29,7 +25,7 @@ export const ManualGenerator: React.FC = () => {
       });
       setLastTask(res.task_id);
     } catch (err) {
-      alert("Failed to dispatch job. Check console.");
+      addToast("Failed to dispatch job. Check console.", "error");
     } finally {
       setLoading(false);
     }
@@ -56,8 +52,8 @@ export const ManualGenerator: React.FC = () => {
         <textarea
           rows={4}
           className="bg-black/40 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all resize-none font-mono"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          value={settings.positivePrompt}
+          onChange={(e) => updateSettings({ positivePrompt: e.target.value })}
         />
       </div>
 
@@ -68,8 +64,8 @@ export const ManualGenerator: React.FC = () => {
         <textarea
           rows={2}
           className="bg-black/40 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all resize-none font-mono"
-          value={negative}
-          onChange={(e) => setNegative(e.target.value)}
+          value={settings.negativePrompt}
+          onChange={(e) => updateSettings({ negativePrompt: e.target.value })}
         />
       </div>
 

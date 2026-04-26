@@ -1,8 +1,10 @@
 import React, { useState, useRef } from "react";
 import { apiClient } from "../lib/api-client";
 import { useSettings } from "../lib/settings-context";
+import { useToast } from "../lib/toast-context";
 
 export const BatchUploader: React.FC = () => {
+  const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [lastBatch, setLastBatch] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export const BatchUploader: React.FC = () => {
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
       console.error(err);
-      alert("Failed to upload batch. Check backend console.");
+      addToast("Failed to upload batch. Check backend console.", "error");
     } finally {
       setLoading(false);
     }

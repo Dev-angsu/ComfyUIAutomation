@@ -7,6 +7,8 @@ interface Settings {
   steps: number;
   workflow: string;
   availableWorkflows: string[];
+  positivePrompt: string;
+  negativePrompt: string;
 }
 
 interface SettingsContextType {
@@ -24,6 +26,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     steps: 30,
     workflow: "anima.json",
     availableWorkflows: ["anima.json"],
+    positivePrompt: "masterpiece, best quality, 1girl, highly detailed",
+    negativePrompt: "worst quality, low quality, bad anatomy",
   });
   const [isLoading, setIsLoading] = useState(true);
 

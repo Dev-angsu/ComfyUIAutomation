@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useLocalStorage } from "../lib/useLocalStorage";
 import { useSettings } from "../lib/settings-context";
 import { apiClient } from "../lib/api-client";
+import { useToast } from "../lib/toast-context";
 
 interface Message {
   role: "system" | "user" | "assistant";
@@ -9,6 +10,7 @@ interface Message {
 }
 
 export function ChatApp() {
+  const { addToast } = useToast();
   const [messages, setMessages] = useLocalStorage<Message[]>("dnd_chat_history", []);
   const [apiUrl, setApiUrl] = useLocalStorage<string>("dnd_lmstudio_url", "http://localhost:1234/v1/chat/completions");
   const [modelId, setModelId] = useLocalStorage<string>("dnd_lmstudio_model", "local-model");
@@ -16,20 +18,11 @@ export function ChatApp() {
 
   const { settings } = useSettings();
   const [isGeneratingImagery, setIsGeneratingImagery] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Auto-hide toast after 5 seconds
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -69,10 +62,10 @@ export function ChatApp() {
         if (Array.isArray(importedMessages)) {
           setMessages(importedMessages);
         } else {
-          alert("Invalid chat history format.");
+          addToast("Invalid chat history format.", "error");
         }
       } catch (err) {
-        alert("Error parsing JSON file.");
+        addToast("Error parsing JSON file.", "error");
       }
     };
     reader.readAsText(file);
@@ -232,17 +225,11 @@ export function ChatApp() {
       });
 
       // 6. Notify user via Toast
-      setToast({
-        type: "success",
-        message: `Imagery Generation Dispatched! Task ID: ${res.task_id.substring(0, 8)}...`
-      });
+      addToast(`Imagery Generation Dispatched! Task ID: ${res.task_id.substring(0, 8)}...`, "success");
 
     } catch (error: any) {
       console.error("Imagery Creation Error:", error);
-      setToast({
-        type: "error",
-        message: error.message
-      });
+      addToast(error.message, "error");
     } finally {
       setIsGeneratingImagery(false);
     }
@@ -250,33 +237,6 @@ export function ChatApp() {
 
   return (
     <div className="flex flex-col h-full bg-zinc-900/50 rounded-2xl border border-zinc-800 overflow-hidden shadow-2xl relative">
-      {/* Toast Notification */}
-      {toast && (
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-500 ease-out animate-in fade-in slide-in-from-top-4">
-          <div className={`px-6 py-3 rounded-2xl shadow-2xl border backdrop-blur-xl flex items-center gap-3 ${
-            toast.type === 'success' 
-              ? 'bg-zinc-900/90 border-emerald-500/30 text-emerald-400 shadow-emerald-500/10' 
-              : 'bg-zinc-900/90 border-red-500/30 text-red-400 shadow-red-500/10'
-          }`}>
-            <div className={`p-1.5 rounded-lg ${toast.type === 'success' ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round">
-                {toast.type === 'success' ? <polyline points="20 6 9 17 4 12"></polyline> : (
-                  <>
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="12"></line>
-                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                  </>
-                )}
-              </svg>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-zinc-100">{toast.type === 'success' ? 'Success' : 'Error'}</span>
-              <span className="text-xs text-zinc-400">{toast.message}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <div className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900/80 shrink-0">
         <div className="flex items-center gap-3">

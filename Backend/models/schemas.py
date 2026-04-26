@@ -135,7 +135,14 @@ class ImageInfo(BaseModel):
     filename: str
     subfolder: str = ""
     type: str = "output"
-    url: str = Field(description="Proxy URL via /api/images/{filename}")
+    url: str = ""  # Will be populated by _make_image_info
+    positive_prompt: Optional[str] = None
+    negative_prompt: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    steps: Optional[int] = None
+    seed: Optional[int] = None
+    workflow: Optional[str] = None
 
 
 class GalleryPage(BaseModel):

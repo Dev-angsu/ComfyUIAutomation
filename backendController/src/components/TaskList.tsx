@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { apiClient } from "../lib/api-client";
+import { useToast } from "../lib/toast-context";
 
 export const TaskList: React.FC = () => {
+  const { addToast } = useToast();
   const [tasks, setTasks] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
@@ -34,7 +36,7 @@ export const TaskList: React.FC = () => {
       await apiClient.deleteTask(taskId);
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
     } catch (err) {
-      alert("Failed to delete task");
+      addToast("Failed to delete task", "error");
     }
   };
 
@@ -45,7 +47,7 @@ export const TaskList: React.FC = () => {
       await apiClient.deleteAllTasks();
       setTasks([]);
     } catch (err) {
-      alert("Failed to clear tasks");
+      addToast("Failed to clear tasks", "error");
     }
   };
 
@@ -117,6 +119,16 @@ export const TaskList: React.FC = () => {
     const separator = baseUrl.includes("?") ? "&" : "?";
     return `${baseUrl}${separator}cb=${task.id}`;
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelectedTask(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredTasks.length / tasksPerPage) || 1;
@@ -267,8 +279,14 @@ export const TaskList: React.FC = () => {
 
       {/* Task Details Modal */}
       {selectedTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setSelectedTask(null)}
+        >
+          <div 
+            className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50 rounded-t-xl">
               <h2 className="text-sm font-semibold text-zinc-200 uppercase tracking-wider">
                 Task Details
