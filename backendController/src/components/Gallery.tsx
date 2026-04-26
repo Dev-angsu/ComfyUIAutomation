@@ -175,6 +175,22 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
     }
   };
 
+  const handleDownloadEverything = async () => {
+    try {
+      addToast("Fetching full gallery metadata...", "info");
+      const allImages = await apiClient.getGalleryAll();
+      if (!allImages || allImages.length === 0) {
+        addToast("No images found to download.", "error");
+        return;
+      }
+      addToast(`Starting ZIP of ${allImages.length} images...`, "info");
+      await handleBulkDownload(allImages);
+    } catch (err) {
+      console.error("Full gallery download error:", err);
+      addToast("Failed to fetch full gallery.", "error");
+    }
+  };
+
   const downloadSingleImage = async (img: any) => {
     try {
       const url = getImageUrl(img) + "&download=true";
@@ -229,13 +245,23 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
              </button>
           )}
           {!selectionMode && images.length > 0 && (
-             <button
-               onClick={() => handleBulkDownload(images)}
-               disabled={downloading}
-               className="text-sm font-medium px-4 py-2 bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 text-zinc-300 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
-             >
-               {downloading ? "Zipping..." : "Download All (Page)"}
-             </button>
+             <div className="flex items-center gap-3">
+               <button
+                 onClick={() => handleBulkDownload(images)}
+                 disabled={downloading}
+                 className="text-sm font-medium px-4 py-2 bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 text-zinc-300 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+               >
+                 {downloading ? "Zipping..." : "Download Page"}
+               </button>
+               <button
+                 onClick={handleDownloadEverything}
+                 disabled={downloading}
+                 className="text-sm font-medium px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-indigo-500/20"
+               >
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                 {downloading ? "Processing..." : "Download All Images"}
+               </button>
+             </div>
           )}
         </div>
       </div>

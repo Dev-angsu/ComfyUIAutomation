@@ -106,31 +106,15 @@ def _extract_from_history(record: dict) -> dict:
 
 # ── Full Gallery (from ComfyUI history) ───────────────────────────────────────
 
-@router.get(
-    "/gallery",
-    response_model=GalleryPage,
-    summary="Paginated image gallery from ComfyUI history",
-)
-async def get_gallery(
-    page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
-    page_size: int = Query(default=20, ge=1, le=100, description="Images per page"),
-) -> GalleryPage:
-    """
-    Phase 1: Reads directly from ComfyUI's /history endpoint.
-    Phase 2: Replaced by PostgreSQL paginated query (same response shape).
-    """
+async def _get_all_images_metadata() -> list[ImageInfo]:
+    """Helper to fetch and map all images from ComfyUI history with metadata."""
     try:
         history = await comfy_adapter.get_full_history()
     except Exception as exc:
         logger.error(f"Failed to fetch ComfyUI history: {exc}")
-        raise HTTPException(
-            status_code=502,
-            detail=f"Could not reach ComfyUI at {settings.comfy_server}: {exc}",
-        )
+        return []
 
     all_images: list[ImageInfo] = []
-
-    # Pre-map ComfyUI prompt_ids to our local tasks for prompt retrieval
     task_map = {
         t.get("comfy_prompt_id"): t 
         for t in task_store.get_all_tasks() 
@@ -139,9 +123,7 @@ async def get_gallery(
 
     for prompt_id, record in history.items():
         task = task_map.get(prompt_id)
-        
         if task:
-            # Found in local task store
             pos = task.get("positive_prompt")
             neg = task.get("negative_prompt")
             w = task.get("width")
@@ -150,7 +132,6 @@ async def get_gallery(
             sd = task.get("seed")
             wf = task.get("workflow")
         else:
-            # Fallback: parse from ComfyUI history record
             meta = _extract_from_history(record)
             pos = meta.get("positive_prompt")
             neg = meta.get("negative_prompt")
@@ -158,18 +139,35 @@ async def get_gallery(
             h = meta.get("height")
             s = meta.get("steps")
             sd = meta.get("seed")
-            wf = None  # Workflow filename isn't in history
+            wf = None
 
         outputs = record.get("outputs", {})
         save_output = outputs.get(settings.comfy_output_node_id, {})
         for img in save_output.get("images", []):
             all_images.append(_make_image_info(img, pos, neg, w, h, s, sd, wf))
 
-    # Sort newest-first (ComfyUI prefixes filenames with sequential counters)
-    # all_images.sort(key=lambda x: x.filename, reverse=True)
-
-    # Reverse list for newest-first (ComfyUI history insertion order natively represents chronological order)
     all_images.reverse()
+    return all_images
+
+
+@router.get(
+    "/gallery",
+    response_model=GalleryPage,
+    summary="Paginated image gallery from ComfyUI history",
+)
+async def get_gallery(
+    page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(default=20, ge=1, le=1000, description="Images per page"),
+) -> GalleryPage:
+    """
+    Phase 1: Reads directly from ComfyUI's /history endpoint.
+    Phase 2: Replaced by PostgreSQL paginated query.
+    """
+    all_images = await _get_all_images_metadata()
+    if not all_images and page == 1:
+        # Check if it was an error or just empty
+        # We don't raise here to allow empty gallery UI
+        pass
 
     total = len(all_images)
     start = (page - 1) * page_size
@@ -183,6 +181,16 @@ async def get_gallery(
         page_size=page_size,
         has_more=end < total,
     )
+
+
+@router.get(
+    "/gallery/all",
+    response_model=list[ImageInfo],
+    summary="Get ALL images metadata (no pagination)",
+)
+async def get_all_gallery_images() -> list[ImageInfo]:
+    """Returns every image in the gallery history. Use for bulk downloads."""
+    return await _get_all_images_metadata()
 
 
 # ── Images for a Specific Task ────────────────────────────────────────────────

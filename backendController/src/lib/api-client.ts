@@ -151,6 +151,15 @@ export const apiClient = {
     return response.json();
   },
 
+  async getGalleryAll() {
+    const response = await fetch(`${API_BASE}/gallery/all`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw new Error("Failed to fetch full gallery");
+    return response.json();
+  },
+
   async getConfig(): Promise<AppConfig> {
     const response = await fetch(`${API_BASE}/config`, {
       method: "GET",
