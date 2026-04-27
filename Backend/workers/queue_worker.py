@@ -2,8 +2,10 @@ import asyncio
 import logging
 import random
 import json
-from datetime import datetime
+import httpx
+from datetime import datetime, timezone
 from typing import Any, Optional
+from websockets.exceptions import ConnectionClosed
 from adapters.comfy_client import comfy_adapter
 from config import settings
 from core.prompt_engine import build_negative_prompt
@@ -298,6 +300,34 @@ async def enqueue_generation_task(task_id: str, task_data: dict[str, Any]) -> No
     logger.info(f"Enqueued task: {task_id} (user_id={user_id})")
 
 
+async def recover_tasks() -> None:
+    """
+    Called on startup to reload non-terminal tasks from the database 
+    into the in-memory FairQueue.
+    """
+    logger.info("🔍 Recovering pending tasks from database...")
+    with SessionLocal() as db:
+        # 1. Reset EXECUTING tasks back to QUEUED
+        # We must restart them because we lost the connection tracking
+        executing = db.query(Task).filter(Task.status == TaskStatus.EXECUTING).all()
+        for t in executing:
+            t.status = TaskStatus.QUEUED
+            t.started_at = None
+        
+        db.commit()
+
+        # 2. Fetch all QUEUED tasks, sorted by creation time to maintain order
+        queued = db.query(Task).filter(Task.status == TaskStatus.QUEUED).order_by(Task.created_at).all()
+        
+        for t in queued:
+            await generation_queue.put(t.user_id, t.id)
+        
+        if queued:
+            logger.info(f"🔄 Recovered {len(queued)} tasks ({len(executing)} were in progress)")
+        else:
+            logger.info("✅ No pending tasks found in database")
+
+
 # ── Worker Internals ──────────────────────────────────────────────────────────
 
 async def _run_single_task(task_id: str) -> None:
@@ -307,7 +337,7 @@ async def _run_single_task(task_id: str) -> None:
         return
 
     # Transition to EXECUTING
-    started_at = datetime.utcnow()
+    started_at = datetime.now(timezone.utc)
     task_store.update_task(task_id, status=TaskStatus.EXECUTING, started_at=started_at)
     await task_store.publish(task_id, {
         "type": "status_change",
@@ -386,7 +416,7 @@ async def _run_single_task(task_id: str) -> None:
                         "url": f"/api/images/{fname}?subfolder={subfolder}&type={img_type}",
                     })
 
-            completed_at = datetime.utcnow()
+            completed_at = datetime.now(timezone.utc)
             task_store.update_task(
                 task_id,
                 status=TaskStatus.DONE,
@@ -410,6 +440,9 @@ async def _run_single_task(task_id: str) -> None:
         else:
             _fail_task(task_id, "Generation timed out after 10 minutes")
 
+    except (httpx.ConnectError, httpx.HTTPStatusError, ConnectionClosed, asyncio.TimeoutError):
+        # Re-raise so the worker loop can handle re-enqueuing/pausing
+        raise
     except Exception as exc:
         logger.exception(f"Task {task_id} raised an exception: {exc}")
         _fail_task(task_id, str(exc))
@@ -421,7 +454,7 @@ async def _run_single_task(task_id: str) -> None:
 
 
 def _fail_task(task_id: str, reason: str) -> None:
-    completed_at = datetime.utcnow()
+    completed_at = datetime.now(timezone.utc)
     task_store.update_task(task_id, status=TaskStatus.ERROR, error=reason, completed_at=completed_at)
     asyncio.create_task(
         task_store.publish(task_id, {
@@ -455,11 +488,37 @@ async def generation_worker() -> None:
     logger.info("🚀 Generation worker started — waiting for tasks...")
 
     while True:
+        # ── 1. Smart Pause: Wait for ComfyUI to be online ──────────────────────
+        is_online = await comfy_adapter.is_reachable()
+        if not is_online:
+            logger.warning("📡 ComfyUI is offline. Worker is pausing until it returns...")
+            while not await comfy_adapter.is_reachable():
+                await asyncio.sleep(10)
+            logger.info("✅ ComfyUI is back online. Resuming worker.")
+
+        # ── 2. Get next task ──────────────────────────────────────────────────
         task_id: str = await generation_queue.get()
+        
         try:
             logger.info(f"▶️  Worker picked up task: {task_id}")
             await _run_single_task(task_id)
+        except (httpx.ConnectError, httpx.HTTPStatusError, ConnectionClosed, asyncio.TimeoutError) as exc:
+            # ── 3. Interruption Handling: Restart job if ComfyUI died mid-task ──
+            logger.warning(f"⚠️  ComfyUI disconnected during task {task_id} ({type(exc).__name__}). Re-enqueuing for restart.")
+            
+            # Reset task in DB so it doesn't look like an error yet
+            task_store.update_task(task_id, status=TaskStatus.QUEUED, started_at=None)
+            
+            # Put back in queue (FairQueue handles user alternating)
+            task = task_store.get_task(task_id)
+            if task:
+                await generation_queue.put(task["user_id"], task_id)
+            
+            # Wait a bit before next loop to avoid hammering a dead server
+            await asyncio.sleep(5)
+
         except Exception as exc:
-            logger.exception(f"Worker top-level error on task {task_id}: {exc}")
+            logger.exception(f"❌ Worker top-level error on task {task_id}: {exc}")
+            _fail_task(task_id, str(exc))
         finally:
             generation_queue.task_done()

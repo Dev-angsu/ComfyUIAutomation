@@ -26,7 +26,7 @@ from api import dictionaries, gallery, generate, models_list, chat_proxy, auth
 from api import websockets as ws_routes
 from config import settings
 from core.database import init_db
-from workers.queue_worker import generation_worker
+from workers.queue_worker import generation_worker, recover_tasks
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 
@@ -60,6 +60,9 @@ async def lifespan(app: FastAPI):
     # Initialize Database
     init_db()
     logger.info("✅ Database initialized")
+
+    # Recover pending tasks from DB before starting the worker
+    await recover_tasks()
 
     # Start the persistent ComfyUI WebSocket listener
     await comfy_adapter.start_ws_listener()

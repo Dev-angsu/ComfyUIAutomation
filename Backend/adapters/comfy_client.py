@@ -54,8 +54,8 @@ class ComfyUIAdapter:
         self._ws_task: Optional[asyncio.Task] = None
         # progress_callbacks: prompt_id → async callback function
         self._progress_callbacks: dict[str, ProgressCallback] = {}
-        # completion_events: prompt_id → asyncio.Event (set when done)
-        self._completion_events: dict[str, asyncio.Event] = {}
+        # completion_futures: prompt_id → asyncio.Future (resolved when done or failed)
+        self._completion_futures: dict[str, asyncio.Future[bool]] = {}
 
     # ── REST Methods ──────────────────────────────────────────────────────────
 
@@ -180,6 +180,19 @@ class ComfyUIAdapter:
             resp.raise_for_status()
             return resp.json()
 
+    async def is_reachable(self) -> bool:
+        """
+        Check if the ComfyUI server is reachable via REST API.
+        Used by the worker to decide if it should pause.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                # system_stats is a fast, no-side-effect endpoint
+                resp = await client.get(f"{settings.comfy_http_base}/system_stats")
+                return resp.status_code == 200
+        except Exception:
+            return False
+
     # ── WebSocket Observer ────────────────────────────────────────────────────
 
     def register_progress_callback(
@@ -193,13 +206,13 @@ class ComfyUIAdapter:
         Observer Pattern: attach subscribers to the event stream.
         """
         self._progress_callbacks[prompt_id] = callback
-        self._completion_events[prompt_id] = asyncio.Event()
+        self._completion_futures[prompt_id] = asyncio.Future()
         logger.debug(f"Registered progress callback for prompt_id: {prompt_id}")
 
     def unregister_progress_callback(self, prompt_id: str) -> None:
         """Detach subscriber. Call after task completes to free memory."""
         self._progress_callbacks.pop(prompt_id, None)
-        self._completion_events.pop(prompt_id, None)
+        self._completion_futures.pop(prompt_id, None)
         logger.debug(f"Unregistered callback for prompt_id: {prompt_id}")
 
     async def wait_for_completion(
@@ -210,16 +223,19 @@ class ComfyUIAdapter:
         """
         Async wait until the generation for prompt_id is marked complete.
         Returns True on success, False on timeout.
+        Raises ConnectionClosed if the WebSocket connection is lost.
         """
-        event = self._completion_events.get(prompt_id)
-        if not event:
+        fut = self._completion_futures.get(prompt_id)
+        if not fut:
             return False
         try:
-            await asyncio.wait_for(event.wait(), timeout=timeout)
-            return True
+            return await asyncio.wait_for(fut, timeout=timeout)
         except asyncio.TimeoutError:
             logger.warning(f"Timeout waiting for prompt_id: {prompt_id}")
             return False
+        except (ConnectionClosed, asyncio.CancelledError):
+            # Pass through connection/cancellation issues to the worker
+            raise
 
     async def start_ws_listener(self) -> None:
         """Start the persistent ComfyUI WebSocket listener as a background task."""
@@ -269,8 +285,15 @@ class ComfyUIAdapter:
                 return
             except ConnectionClosed as e:
                 logger.warning(f"ComfyUI WS closed ({e}). Reconnecting in 5s...")
+                # Signal failure to all waiting tasks so they can re-enqueue
+                for fut in list(self._completion_futures.values()):
+                    if not fut.done():
+                        fut.set_exception(e)
             except Exception as e:
                 logger.warning(f"ComfyUI WS error ({type(e).__name__}: {e}). Reconnecting in 5s...")
+                for fut in list(self._completion_futures.values()):
+                    if not fut.done():
+                        fut.set_exception(e)
 
             await asyncio.sleep(5)
 
@@ -295,9 +318,9 @@ class ComfyUIAdapter:
             if node is None:
                 # node=None means the entire workflow finished
                 logger.info(f"ComfyUI completed prompt_id: {prompt_id}")
-                event = self._completion_events.get(prompt_id)
-                if event:
-                    event.set()
+                fut = self._completion_futures.get(prompt_id)
+                if fut and not fut.done():
+                    fut.set_result(True)
                 await callback(prompt_id, {"type": "completed"})
             else:
                 await callback(prompt_id, {"type": "executing", "node": node})
@@ -316,9 +339,9 @@ class ComfyUIAdapter:
         elif msg_type == "execution_error":
             error_msg = data.get("exception_message", "Unknown ComfyUI error")
             logger.error(f"ComfyUI execution error for {prompt_id}: {error_msg}")
-            event = self._completion_events.get(prompt_id)
-            if event:
-                event.set()  # Unblock the waiter
+            fut = self._completion_futures.get(prompt_id)
+            if fut and not fut.done():
+                fut.set_result(False)  # Unblock the waiter but indicate failure
             await callback(prompt_id, {
                 "type": "error",
                 "message": error_msg,

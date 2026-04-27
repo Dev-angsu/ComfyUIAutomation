@@ -134,10 +134,34 @@ export const TaskList: React.FC = () => {
   const formatDateTime = (dateStr: string | null) => {
     if (!dateStr) return "N/A";
     try {
-      const date = new Date(dateStr);
+      // If the string doesn't end with Z and doesn't contain a timezone offset,
+      // assume it's UTC (coming from backend naive utcnow) and append Z.
+      // This ensures the browser treats it as UTC and converts it to the specified timeZone.
+      let normalizedDateStr = dateStr;
+      if (!dateStr.endsWith("Z") && !dateStr.includes("+") && !dateStr.includes("GMT")) {
+        normalizedDateStr = dateStr.includes("T") ? `${dateStr}Z` : `${dateStr.replace(" ", "T")}Z`;
+      }
+
+      const date = new Date(normalizedDateStr);
       if (isNaN(date.getTime())) return "N/A";
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + 
-             " (" + date.toLocaleDateString() + ")";
+      
+      // Explicitly format to Indian Standard Time (IST)
+      const options: Intl.DateTimeFormatOptions = { 
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit',
+        hour12: true 
+      };
+      const dateOptions: Intl.DateTimeFormatOptions = {
+        timeZone: 'Asia/Kolkata',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      };
+      
+      return date.toLocaleTimeString('en-IN', options) + 
+             " (" + date.toLocaleDateString('en-IN', dateOptions) + ")";
     } catch (e) {
       return "N/A";
     }
@@ -192,17 +216,27 @@ export const TaskList: React.FC = () => {
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
           </div>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="bg-black/40 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-indigo-500/50 transition-all cursor-pointer"
-          >
-            <option value="ALL">All Status</option>
-            <option value="QUEUED">Queued</option>
-            <option value="EXECUTING">Executing</option>
-            <option value="DONE">Finished</option>
-            <option value="ERROR">Failed</option>
-          </select>
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            {[
+              { id: "ALL", label: "All" },
+              { id: "QUEUED", label: "Queued" },
+              { id: "EXECUTING", label: "Executing" },
+              { id: "DONE", label: "Finished" },
+              { id: "ERROR", label: "Failed" },
+            ].map((status) => (
+              <button
+                key={status.id}
+                onClick={() => setFilterStatus(status.id)}
+                className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${
+                  filterStatus === status.id
+                    ? "bg-indigo-600/20 border-indigo-500/50 text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.1)]"
+                    : "bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 hover:bg-zinc-800"
+                }`}
+              >
+                {status.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       <div className="overflow-x-auto">
@@ -210,7 +244,9 @@ export const TaskList: React.FC = () => {
           <thead className="bg-black/20 text-xs uppercase tracking-wider text-zinc-500 border-b border-zinc-800">
             <tr>
               <th className="px-4 py-3 font-medium">Task ID</th>
+              <th className="px-4 py-3 font-medium">Type</th>
               <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Completed At</th>
               <th className="px-4 py-3 font-medium">Prompt Snippet</th>
               <th className="px-4 py-3 font-medium text-right">Actions</th>
             </tr>
@@ -235,13 +271,21 @@ export const TaskList: React.FC = () => {
                     {task.id.split("-")[0]}
                   </td>
                   <td className="px-4 py-3">
+                    <span className="text-[10px] text-zinc-500 uppercase font-semibold">
+                      {task.type || "Manual"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium tracking-wide ${task.status === "DONE" ? "bg-emerald-500/10 text-emerald-400" : task.status === "ERROR" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}
                     >
                       {task.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-xs opacity-80 whitespace-normal break-words min-w-[250px]">
+                  <td className="px-4 py-3 text-[10px] font-mono text-zinc-500">
+                    {formatDateTime(task.completed_at)}
+                  </td>
+                  <td className="px-4 py-3 text-xs opacity-80 whitespace-normal break-words min-w-[200px]">
                     {task.positive_prompt}
                   </td>
                   <td className="px-4 py-3 text-right">
