@@ -12,36 +12,36 @@ export const StudioWorkspace: React.FC = () => {
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full">
       <div className="lg:col-span-8 flex flex-col gap-6">
         {/* Tab Selection */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-2 flex gap-2">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-1.5 flex flex-wrap sm:flex-nowrap gap-1.5">
           <button
             onClick={() => setMode("manual")}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 min-w-[100px] py-3 px-4 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wide transition-all border ${
               mode === "manual"
-                ? "bg-indigo-500/10 text-indigo-400"
-                : "text-zinc-400 hover:text-zinc-200"
+                ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
+                : "bg-transparent border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
             }`}
           >
-            Studio
+            Manual
           </button>
           <button
             onClick={() => setMode("batch")}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 min-w-[100px] py-3 px-4 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wide transition-all border ${
               mode === "batch"
-                ? "bg-indigo-500/10 text-indigo-400"
-                : "text-zinc-400 hover:text-zinc-200"
+                ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
+                : "bg-transparent border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
             }`}
           >
-            Batch Jobs (CSV/JSON)
+            Batch
           </button>
           <button
             onClick={() => setMode("dynamic")}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 min-w-[100px] py-3 px-4 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wide transition-all border ${
               mode === "dynamic"
-                ? "bg-indigo-500/10 text-indigo-400"
-                : "text-zinc-400 hover:text-zinc-200"
+                ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
+                : "bg-transparent border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
             }`}
           >
-            Dynamic Pipeline (JSON)
+            Pipeline
           </button>
         </div>
 

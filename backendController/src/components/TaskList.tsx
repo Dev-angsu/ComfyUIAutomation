@@ -176,39 +176,42 @@ export const TaskList: React.FC = () => {
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-      <div className="p-4 border-b border-zinc-800 flex flex-col gap-4 sm:flex-row justify-between items-start sm:items-center">
-        <div className="flex items-center gap-4">
-          <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-            Recent Tasks
-          </h3>
-          <span className="text-xs text-zinc-500 font-mono">
-            Total: {filteredTasks.length}
-          </span>
+      <div className="p-4 border-b border-zinc-800 flex flex-col gap-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">
+              Recent Tasks
+            </h3>
+            <div className="px-2 py-0.5 bg-zinc-800 rounded text-[10px] font-mono text-zinc-400 border border-zinc-700/50">
+              {filteredTasks.length}
+            </div>
+          </div>
           {tasks.length > 0 && (
             <button
               onClick={handleClearAll}
-              className="text-[10px] font-bold text-red-400/60 hover:text-red-400 px-2 py-1 rounded border border-red-500/10 hover:border-red-500/30 transition-all uppercase tracking-tighter ml-2"
+              className="text-[10px] font-black text-red-400/60 hover:text-red-400 px-3 py-1.5 rounded-lg border border-red-500/10 hover:border-red-500/30 transition-all uppercase tracking-widest"
             >
               Clear All
             </button>
           )}
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="relative w-full sm:w-48">
+
+        <div className="flex flex-col md:flex-row items-center gap-4">
+          <div className="relative w-full md:w-64">
             <input
               type="text"
-              placeholder="Search tasks..."
+              placeholder="Search history..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-black/40 border border-zinc-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all placeholder-zinc-600"
+              className="w-full bg-black/40 border border-zinc-700/50 rounded-xl pl-9 pr-4 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all placeholder-zinc-600 shadow-inner"
             />
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="absolute left-2.5 top-2 w-3.5 h-3.5 text-zinc-500"
+              className="absolute left-3 top-3 w-4 h-4 text-zinc-500"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="2.5"
               strokeLinecap="round"
               strokeLineJoin="round"
             >
@@ -216,7 +219,8 @@ export const TaskList: React.FC = () => {
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
           </div>
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          
+          <div className="flex items-center gap-1.5 w-full md:w-auto overflow-x-auto no-scrollbar py-1">
             {[
               { id: "ALL", label: "All" },
               { id: "QUEUED", label: "Queued" },
@@ -227,7 +231,7 @@ export const TaskList: React.FC = () => {
               <button
                 key={status.id}
                 onClick={() => setFilterStatus(status.id)}
-                className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${
+                className={`flex-1 md:flex-none whitespace-nowrap px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
                   filterStatus === status.id
                     ? "bg-indigo-600/20 border-indigo-500/50 text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.1)]"
                     : "bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 hover:bg-zinc-800"
@@ -238,26 +242,54 @@ export const TaskList: React.FC = () => {
             ))}
           </div>
         </div>
+
+        {/* Pagination (Top) */}
+        {totalPages >= 1 && (
+          <div className="flex justify-between items-center bg-black/20 border border-zinc-800/50 p-2 rounded-xl">
+            <button
+              disabled={validPage === 1}
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              Prev
+            </button>
+            <span className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em]">
+              Page {validPage} / {totalPages}
+            </span>
+            <button
+              disabled={validPage === totalPages}
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
+            >
+              Next
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+          </div>
+        )}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm text-zinc-400">
-          <thead className="bg-black/20 text-xs uppercase tracking-wider text-zinc-500 border-b border-zinc-800">
+        {/* Desktop Table View */}
+        <table className="hidden sm:table w-full text-left text-sm text-zinc-400 table-fixed border-collapse">
+          <thead className="bg-black/20 text-[10px] uppercase tracking-wider text-zinc-500 border-b border-zinc-800">
             <tr>
-              <th className="px-4 py-3 font-medium">Task ID</th>
-              <th className="px-4 py-3 font-medium">Type</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Completed At</th>
+              <th className="w-[100px] px-4 py-3 font-medium">Task ID</th>
+              <th className="w-[100px] px-4 py-3 font-medium">Type</th>
+              <th className="w-[120px] px-4 py-3 font-medium">Status</th>
+              <th className="w-[180px] px-4 py-3 font-medium">Completed At</th>
               <th className="px-4 py-3 font-medium">Prompt Snippet</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
+              <th className="w-[80px] px-4 py-3 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800/50">
             {filteredTasks.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-zinc-600">
+                <td colSpan={6} className="px-4 py-12 text-center text-zinc-600">
                   {tasks.length === 0
-                    ? "No active tasks"
-                    : "No tasks match your filters"}
+                    ? "No active tasks found in history."
+                    : "No tasks match your current filters."}
                 </td>
               </tr>
             ) : (
@@ -265,40 +297,43 @@ export const TaskList: React.FC = () => {
                 <tr
                   key={task.id}
                   onClick={() => setSelectedTask(task)}
-                  className="hover:bg-white/[0.03] transition-colors cursor-pointer"
+                  className="hover:bg-white/[0.03] transition-colors cursor-pointer group"
                 >
-                  <td className="px-4 py-3 font-mono text-[11px] text-zinc-300">
+                  <td className="px-4 py-4 font-mono text-[11px] text-zinc-300">
                     {task.id.split("-")[0]}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="text-[10px] text-zinc-500 uppercase font-semibold">
+                  <td className="px-4 py-4">
+                    <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-tight">
                       {task.type || "Manual"}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-4">
                     <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium tracking-wide ${task.status === "DONE" ? "bg-emerald-500/10 text-emerald-400" : task.status === "ERROR" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}
+                      className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wide ${task.status === "DONE" ? "bg-emerald-500/10 text-emerald-400" : task.status === "ERROR" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}
                     >
                       {task.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-[10px] font-mono text-zinc-500">
+                  <td className="px-4 py-4 text-[10px] font-mono text-zinc-500">
                     {formatDateTime(task.completed_at)}
                   </td>
-                  <td className="px-4 py-3 text-xs opacity-80 whitespace-normal break-words min-w-[200px]">
-                    {task.positive_prompt}
+                  <td className="px-4 py-4">
+                    <div 
+                      className="text-xs opacity-80 truncate max-w-full"
+                      title={task.positive_prompt}
+                    >
+                      {task.positive_prompt || <span className="text-zinc-600 italic">No prompt provided</span>}
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-4 text-right">
                     <button
                       onClick={(e) => handleDeleteTask(e, task.id)}
-                      className="p-1.5 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                      className="p-2 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                       title="Delete Task"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
                       </svg>
                     </button>
                   </td>
@@ -307,32 +342,60 @@ export const TaskList: React.FC = () => {
             )}
           </tbody>
         </table>
+
+        {/* Mobile Card View */}
+        <div className="sm:hidden flex flex-col divide-y divide-zinc-800/50">
+          {filteredTasks.length === 0 ? (
+            <div className="px-4 py-12 text-center text-zinc-600">
+               {tasks.length === 0 ? "No active tasks" : "No results"}
+            </div>
+          ) : (
+            currentTasks.map((task) => (
+              <div 
+                key={task.id} 
+                onClick={() => setSelectedTask(task)}
+                className="p-4 flex flex-col gap-3 active:bg-white/[0.05] transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded">
+                      #{task.id.split("-")[0]}
+                    </span>
+                    <span className="text-[10px] text-zinc-500 uppercase font-bold">
+                      {task.type || "Manual"}
+                    </span>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[9px] font-bold tracking-wide ${task.status === "DONE" ? "bg-emerald-500/10 text-emerald-400" : task.status === "ERROR" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}
+                  >
+                    {task.status}
+                  </span>
+                </div>
+                
+                <p className="text-xs text-zinc-300 line-clamp-2 leading-relaxed">
+                  {task.positive_prompt || <span className="text-zinc-600 italic">No prompt</span>}
+                </p>
+
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-[10px] text-zinc-600 font-mono">
+                    {formatDateTime(task.completed_at)}
+                  </span>
+                  <button
+                    onClick={(e) => handleDeleteTask(e, task.id)}
+                    className="p-2 -m-2 text-zinc-600 hover:text-red-400"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="p-3 border-t border-zinc-800 flex justify-between items-center bg-black/10">
-          <button
-            disabled={validPage === 1}
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            className="text-xs px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-zinc-300 transition-colors"
-          >
-            Previous
-          </button>
-          <span className="text-xs text-zinc-500 font-medium">
-            Page {validPage} of {totalPages}
-          </span>
-          <button
-            disabled={validPage === totalPages}
-            onClick={() =>
-              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-            }
-            className="text-xs px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-zinc-300 transition-colors"
-          >
-            Next
-          </button>
-        </div>
-      )}
 
       {/* Task Details Modal */}
       {selectedTask && (

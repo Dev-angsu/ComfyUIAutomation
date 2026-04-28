@@ -238,31 +238,34 @@ export function ChatApp() {
   return (
     <div className="flex flex-col h-full bg-zinc-900/50 rounded-2xl border border-zinc-800 overflow-hidden shadow-2xl relative">
       {/* Header */}
-      <div className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900/80 shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="min-h-14 border-b border-zinc-800 flex flex-col sm:flex-row items-center justify-between px-4 sm:px-6 py-2 sm:py-0 bg-zinc-900/80 shrink-0 gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round" className="text-indigo-400">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
           </svg>
-          <h2 className="text-lg font-semibold text-zinc-100">Stories</h2>
+          <h2 className="text-base sm:text-lg font-semibold text-zinc-100">Stories</h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto overflow-x-auto no-scrollbar pb-1 sm:pb-0">
           <button
             onClick={handleCreateImagery}
             disabled={messages.length === 0 || isGeneratingImagery}
-            className="text-xs font-medium text-indigo-400 hover:text-indigo-300 px-3 py-1.5 rounded-lg hover:bg-indigo-500/10 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Create Imagery based on current environment"
+            className="text-[10px] sm:text-xs font-bold text-indigo-400 hover:text-indigo-300 px-3 py-2 rounded-lg hover:bg-indigo-500/10 transition-colors flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap bg-indigo-500/5 border border-indigo-500/10"
+            title="Create Imagery"
           >
             {isGeneratingImagery ? (
               <div className="w-3.5 h-3.5 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                 <circle cx="8.5" cy="8.5" r="1.5"></circle>
                 <polyline points="21 15 16 10 5 21"></polyline>
               </svg>
             )}
-            {isGeneratingImagery ? "Creating..." : "Create Imagery"}
+            {isGeneratingImagery ? "..." : "Visuals"}
           </button>
+          
+          <div className="h-6 w-px bg-zinc-800 mx-1 hidden sm:block"></div>
+
           <input
             type="file"
             accept=".json"
@@ -272,41 +275,39 @@ export function ChatApp() {
           />
           <button
             onClick={() => document.getElementById('import-chat-history')?.click()}
-            className="text-xs font-medium text-zinc-400 hover:text-zinc-200 px-3 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-2"
+            className="text-[10px] sm:text-xs font-bold text-zinc-400 hover:text-zinc-200 px-3 py-2 rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-1.5 whitespace-nowrap border border-transparent"
             title="Import History"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
-            Import
+            <span className="hidden xs:inline">Import</span>
           </button>
           <button
             onClick={handleDownloadHistory}
-            className="text-xs font-medium text-zinc-400 hover:text-zinc-200 px-3 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-2"
+            className="text-[10px] sm:text-xs font-bold text-zinc-400 hover:text-zinc-200 px-3 py-2 rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-1.5 whitespace-nowrap border border-transparent"
             title="Download History"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
-            Download
+            <span className="hidden xs:inline">Export</span>
           </button>
           <button
             onClick={handleClearHistory}
-            className="text-xs font-medium text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg hover:bg-red-500/10 transition-colors"
+            className="text-[10px] sm:text-xs font-bold text-red-400 hover:text-red-300 px-3 py-2 rounded-lg hover:bg-red-500/10 transition-colors border border-transparent"
             title="Clear History"
           >
             Clear
           </button>
           <button
             onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-            className={`p-2 rounded-lg transition-colors ${isSettingsOpen ? 'bg-indigo-500/20 text-indigo-400' : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'}`}
+            className={`p-2 rounded-lg transition-colors border ${isSettingsOpen ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/20' : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 border-transparent'}`}
             title="Settings"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round">
               <circle cx="12" cy="12" r="3"></circle>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
             </svg>

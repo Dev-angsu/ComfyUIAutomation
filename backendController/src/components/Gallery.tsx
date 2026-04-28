@@ -224,58 +224,118 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
     setSelectedImages(newSelected);
   };
 
+  const [showDetails, setShowDetails] = useState(window.innerWidth >= 1024);
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between bg-zinc-900 border border-zinc-800 p-3 sm:p-4 rounded-xl gap-4 shadow-xl shadow-black/20">
+        <div className="flex items-center gap-2 w-full lg:w-auto">
           <button
             onClick={() => {
               setSelectionMode(!selectionMode);
               if (selectionMode) setSelectedImages(new Set());
             }}
-            className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors border ${selectionMode ? "bg-indigo-600 border-indigo-500 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700"}`}
+            className={`flex-1 sm:flex-none text-[10px] sm:text-xs font-bold uppercase tracking-wider px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl transition-all border flex items-center justify-center gap-2 ${selectionMode ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20" : "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20"}`}
           >
-            {selectionMode ? "Cancel Selection" : "Select Mode"}
+            {selectionMode ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                Cancel
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><path d="M9 12l2 2 4-4"></path></svg>
+                Select Mode
+              </>
+            )}
           </button>
           {selectionMode && (
-             <span className="text-sm text-zinc-400">
-               {selectedImages.size} selected
-             </span>
+             <div className="px-3 py-1.5 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
+               <span className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">
+                 {selectedImages.size} <span className="hidden xs:inline">Selected</span>
+               </span>
+             </div>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           {selectionMode && selectedImages.size > 0 && (
              <button
                onClick={() => handleBulkDownload(images.filter(img => selectedImages.has(img.filename)))}
                disabled={downloading}
-               className="text-sm font-medium px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+               className="flex-1 sm:flex-none text-xs font-bold uppercase tracking-wider px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-indigo-500/20 active:scale-95"
              >
+               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                {downloading ? "Zipping..." : "Download Selected"}
              </button>
           )}
           {!selectionMode && images.length > 0 && (
-             <div className="flex items-center gap-3">
-               <button
-                 onClick={() => handleBulkDownload(images)}
-                 disabled={downloading}
-                 className="text-sm font-medium px-4 py-2 bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 text-zinc-300 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
-               >
-                 {downloading ? "Zipping..." : "Download Page"}
-               </button>
-               <button
-                 onClick={handleDownloadEverything}
-                 disabled={downloading}
-                 className="text-sm font-medium px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-indigo-500/20"
-               >
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                 {downloading ? "Processing..." : "Download All Images"}
-               </button>
-             </div>
+             <>
+               <div className="flex items-center gap-2 w-full sm:w-auto">
+                 <button
+                   onClick={() => handleBulkDownload(images)}
+                   disabled={downloading}
+                   className="flex-1 sm:flex-none text-[9px] sm:text-[10px] font-black uppercase tracking-[0.15em] px-3 py-2.5 sm:px-4 sm:py-3 bg-zinc-800/80 border border-zinc-700 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                 >
+                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                   {downloading ? "Zipping..." : "Zip Page"}
+                 </button>
+                 <button
+                   onClick={handleDownloadEverything}
+                   disabled={downloading}
+                   className="flex-1 sm:flex-none text-[9px] sm:text-[10px] font-black uppercase tracking-[0.15em] px-4 py-2.5 sm:px-5 sm:py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-indigo-500/25 active:scale-95"
+                 >
+                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round" className="hidden xs:block"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                   {downloading ? "Processing..." : "Download All"}
+                 </button>
+               </div>
+             </>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+      {/* Pagination (Top) */}
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center bg-zinc-900/50 border border-zinc-800/50 p-2 sm:p-3 rounded-xl">
+          <button
+            disabled={page === 1}
+            onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            Prev
+          </button>
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em]">
+              Page {page} of {totalPages}
+            </span>
+            <div className="flex gap-1 mt-1">
+               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                 let pageNum = page;
+                 if (page <= 3) pageNum = i + 1;
+                 else if (page >= totalPages - 2) pageNum = totalPages - 4 + i;
+                 else pageNum = page - 2 + i;
+                 
+                 if (pageNum <= 0 || pageNum > totalPages) return null;
+
+                 return (
+                   <div key={pageNum} className={`w-1 h-1 rounded-full ${pageNum === page ? "bg-indigo-500" : "bg-zinc-800"}`}></div>
+                 );
+               })}
+            </div>
+          </div>
+          <button
+            disabled={page === totalPages}
+            onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
+          >
+            Next
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
         {images.length === 0 ? (
           <div className="col-span-full text-center text-zinc-500 py-12">
             No images found in gallery.
@@ -294,6 +354,8 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
                   toggleSelection(img.filename);
                 } else {
                   setSelectedImage(img);
+                  // Hide details by default on mobile, show on desktop
+                  setShowDetails(window.innerWidth >= 1024);
                 }
               }}
             />
@@ -301,27 +363,6 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
         )}
       </div>
 
-      {totalPages > 1 && (
-        <div className="p-3 border border-zinc-800 flex justify-between items-center bg-black/20 rounded-xl mt-2">
-          <button
-            disabled={page === 1}
-            onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-            className="text-xs px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-zinc-300 transition-colors"
-          >
-            Previous
-          </button>
-          <span className="text-xs text-zinc-500 font-medium">
-            Page {page} of {totalPages}
-          </span>
-          <button
-            disabled={page === totalPages}
-            onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-            className="text-xs px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-zinc-300 transition-colors"
-          >
-            Next
-          </button>
-        </div>
-      )}
 
       {selectedImage && (
         <div
@@ -360,85 +401,99 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
             </TransformWrapper>
           </div>
 
-          {/* Close Button */}
-          <button 
-            onClick={() => setSelectedImage(null)}
-            className="absolute top-8 right-8 z-10 p-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white transition-all active:scale-90 shadow-2xl border border-white/10"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-          </button>
+          {/* Top Controls (Close & Toggle Info) */}
+          <div className="absolute top-4 sm:top-8 right-4 sm:right-8 flex items-center gap-3 z-10">
+            <button 
+              onClick={(e) => { e.stopPropagation(); setShowDetails(!showDetails); }}
+              className={`p-3 backdrop-blur-md rounded-full text-white transition-all active:scale-90 shadow-2xl border border-white/10 ${showDetails ? "bg-indigo-600/50 hover:bg-indigo-600/70" : "bg-white/10 hover:bg-white/20"}`}
+              title={showDetails ? "Hide Prompt Details" : "Show Prompt Details"}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            </button>
+            <button 
+              onClick={() => setSelectedImage(null)}
+              className="p-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white transition-all active:scale-90 shadow-2xl border border-white/10"
+              title="Close Gallery (Esc)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
 
           {/* Navigation Controls (Bottom Center) */}
-          <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-6 z-10 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="absolute bottom-8 sm:bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-4 sm:gap-6 z-10 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={handlePrevImage}
-              className="p-4 bg-white/5 hover:bg-white/10 backdrop-blur-xl rounded-2xl text-white transition-all active:scale-95 border border-white/10 group shadow-2xl"
+              className="p-3.5 sm:p-4 bg-white/5 hover:bg-white/10 backdrop-blur-xl rounded-2xl text-white transition-all active:scale-95 border border-white/10 group shadow-2xl"
               title="Previous Image (Left Arrow)"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round" className="group-hover:-translate-x-1 transition-transform"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round" className="group-hover:-translate-x-1 transition-transform sm:w-6 sm:h-6"><polyline points="15 18 9 12 15 6"></polyline></svg>
             </button>
             
-            <div className="px-6 py-3 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 text-white/50 text-xs font-bold tracking-widest uppercase">
+            <div className="px-4 py-2 sm:px-6 sm:py-3 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 text-white/50 text-[10px] sm:text-xs font-bold tracking-widest uppercase">
               {images.findIndex(img => img.filename === selectedImage.filename) + 1} / {images.length}
             </div>
 
             <button
               onClick={handleNextImage}
-              className="p-4 bg-white/5 hover:bg-white/10 backdrop-blur-xl rounded-2xl text-white transition-all active:scale-95 border border-white/10 group shadow-2xl"
+              className="p-3.5 sm:p-4 bg-white/5 hover:bg-white/10 backdrop-blur-xl rounded-2xl text-white transition-all active:scale-95 border border-white/10 group shadow-2xl"
               title="Next Image (Right Arrow)"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round" className="group-hover:translate-x-1 transition-transform"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round" className="group-hover:translate-x-1 transition-transform sm:w-6 sm:h-6"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </button>
           </div>
 
-          {/* Overlaid UI Controls (Glassmorphism) Sidebar */}
+          {/* Overlaid UI Controls (Glassmorphism) Sidebar / Bottom Sheet */}
           <div 
-            className="absolute left-8 top-1/2 -translate-y-1/2 w-full max-w-sm px-4 flex flex-col gap-4 pointer-events-none"
+            className={`
+              absolute transition-all duration-500 ease-in-out pointer-events-none z-20
+              ${showDetails ? "opacity-100 translate-y-0 lg:translate-x-0" : "opacity-0 translate-y-8 lg:-translate-x-8 pointer-events-none"}
+              bottom-24 left-4 right-4 sm:left-8 sm:right-8 lg:right-auto lg:top-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:w-full lg:max-w-sm
+            `}
           >
             <div 
-              className="bg-zinc-950/20 backdrop-blur-2xl border border-white/5 rounded-[40px] p-10 shadow-2xl flex flex-col gap-8 animate-in slide-in-from-left-8 duration-700 pointer-events-auto"
+              className="bg-zinc-950/40 backdrop-blur-3xl border border-white/10 rounded-[32px] lg:rounded-[40px] p-6 sm:p-8 lg:p-10 shadow-2xl flex flex-col gap-6 lg:gap-8 pointer-events-auto max-h-[60vh] lg:max-h-none overflow-y-auto no-scrollbar"
               onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex flex-col items-start gap-10">
-                  <div className="w-full flex flex-col gap-6">
+                <div className="flex flex-col items-start gap-6 lg:gap-10">
+                  <div className="w-full flex flex-col gap-5 lg:gap-6">
                     {selectedImage.positive_prompt && (
-                      <div className="flex flex-col gap-3">
+                      <div className="flex flex-col gap-2 sm:gap-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
-                            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] opacity-90">Positive Prompt</span>
+                            <span className="text-[9px] sm:text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] opacity-90">Positive Prompt</span>
                           </div>
                           <CopyButton text={selectedImage.positive_prompt} />
                         </div>
-                        <p className="text-sm text-white/90 leading-relaxed line-clamp-[12] font-mono font-medium">
+                        <p className="text-xs sm:text-sm text-white/90 leading-relaxed line-clamp-[6] lg:line-clamp-[12] font-mono font-medium">
                           {selectedImage.positive_prompt}
                         </p>
                       </div>
                     )}
                     {selectedImage.negative_prompt && (
-                      <div className="flex flex-col gap-3">
+                      <div className="flex flex-col gap-2 sm:gap-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                            <span className="text-[10px] font-black text-red-400 uppercase tracking-[0.2em] opacity-90">Negative Prompt</span>
+                            <span className="text-[9px] sm:text-[10px] font-black text-red-400 uppercase tracking-[0.2em] opacity-90">Negative Prompt</span>
                           </div>
                           <CopyButton text={selectedImage.negative_prompt} />
                         </div>
-                        <p className="text-xs text-white/50 leading-relaxed line-clamp-4 font-mono italic">
+                        <p className="text-[10px] sm:text-xs text-white/50 leading-relaxed line-clamp-3 lg:line-clamp-4 font-mono italic">
                           {selectedImage.negative_prompt}
                         </p>
                       </div>
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-5 shrink-0 w-full">
+                  <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 shrink-0 w-full">
                     <button
                       disabled={!selectedImage.positive_prompt}
                       onClick={() => handleRecreate(selectedImage)}
-                      className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white px-8 py-4 rounded-[24px] font-bold text-sm transition-all flex items-center justify-center gap-3 shadow-2xl shadow-indigo-500/20 active:scale-95 group disabled:cursor-not-allowed"
+                      className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white px-6 py-3.5 sm:px-8 sm:py-4 rounded-[20px] lg:rounded-[24px] font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-3 shadow-2xl shadow-indigo-500/20 active:scale-95 group disabled:cursor-not-allowed"
                     >
                       <svg 
-                        className="group-hover:rotate-180 transition-transform duration-500" 
+                        className="group-hover:rotate-180 transition-transform duration-500 w-4 h-4 sm:w-5 sm:h-5" 
                         xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"
                       >
                         <path d="M21 2v6h-6"></path>
@@ -449,42 +504,44 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
                       {selectedImage.positive_prompt ? "Recreate Image" : "Metadata Missing"}
                     </button>
 
-                    <button
-                      disabled={!selectedImage.positive_prompt}
-                      onClick={() => handleModifyAndRecreate(selectedImage)}
-                      className="bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-800 disabled:text-zinc-500 text-white px-8 py-4 rounded-[24px] font-bold text-sm transition-all flex items-center justify-center gap-3 active:scale-95 group disabled:cursor-not-allowed border border-zinc-700"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"
+                    <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
+                      <button
+                        disabled={!selectedImage.positive_prompt}
+                        onClick={() => handleModifyAndRecreate(selectedImage)}
+                        className="bg-zinc-800/80 hover:bg-zinc-700 disabled:bg-zinc-800/50 disabled:text-zinc-500 text-white px-4 py-3.5 rounded-[20px] lg:rounded-[24px] font-bold text-[10px] sm:text-xs lg:text-sm transition-all flex items-center justify-center gap-2 sm:gap-3 active:scale-95 group disabled:cursor-not-allowed border border-white/5"
                       >
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                      </svg>
-                      {selectedImage.positive_prompt ? "Modify & Recreate" : "Metadata Missing"}
-                    </button>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round" className="sm:w-5 sm:h-5"
+                        >
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                        Modify
+                      </button>
 
-                    <button
-                      onClick={() => downloadSingleImage(selectedImage)}
-                      className="bg-zinc-800 hover:bg-zinc-700 text-white px-8 py-4 rounded-[24px] font-bold text-sm transition-all flex items-center justify-center gap-3 active:scale-95 group border border-zinc-700"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                      </svg>
-                      Download Image
-                    </button>
+                      <button
+                        onClick={() => downloadSingleImage(selectedImage)}
+                        className="bg-zinc-800/80 hover:bg-zinc-700 text-white px-4 py-3.5 rounded-[20px] lg:rounded-[24px] font-bold text-[10px] sm:text-xs lg:text-sm transition-all flex items-center justify-center gap-2 sm:gap-3 active:scale-95 group border border-white/5"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round" className="sm:w-5 sm:h-5">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                          <polyline points="7 10 12 15 17 10"></polyline>
+                          <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Save
+                      </button>
+                    </div>
                     
-                    <div className="grid grid-cols-1 gap-3 bg-white/5 p-5 rounded-[24px] border border-white/5">
-                       <div className="flex items-center justify-between px-2">
-                          <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest">Resolution</span>
-                          <span className="text-xs text-white/80 font-mono font-bold">
-                            {selectedImage.width ? `${selectedImage.width} × ${selectedImage.height}` : "N/A"}
+                    <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 sm:gap-3 bg-white/5 p-4 sm:p-5 rounded-[24px] border border-white/5">
+                       <div className="flex items-center justify-between px-1">
+                          <span className="text-[8px] sm:text-[9px] font-bold text-white/30 uppercase tracking-widest">Resolution</span>
+                          <span className="text-[10px] sm:text-xs text-white/80 font-mono font-bold">
+                            {selectedImage.width ? `${selectedImage.width}×${selectedImage.height}` : "N/A"}
                           </span>
                        </div>
-                       <div className="flex items-center justify-between px-2 pt-3 border-t border-white/5">
-                          <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest">Steps</span>
-                          <span className="text-xs text-white/80 font-mono font-bold">
+                       <div className="flex items-center justify-between px-1 lg:pt-3 lg:border-t lg:border-white/5">
+                          <span className="text-[8px] sm:text-[9px] font-bold text-white/30 uppercase tracking-widest">Steps</span>
+                          <span className="text-[10px] sm:text-xs text-white/80 font-mono font-bold">
                             {selectedImage.steps || "N/A"}
                           </span>
                        </div>
