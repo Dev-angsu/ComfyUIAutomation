@@ -9,7 +9,7 @@ export const TaskList: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
-  const tasksPerPage = 5;
+  const [tasksPerPage, setTasksPerPage] = useState(() => Number(localStorage.getItem("tasks_per_page")) || 5);
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -187,12 +187,31 @@ export const TaskList: React.FC = () => {
             </div>
           </div>
           {tasks.length > 0 && (
-            <button
-              onClick={handleClearAll}
-              className="text-[10px] font-black text-red-400/60 hover:text-red-400 px-3 py-1.5 rounded-lg border border-red-500/10 hover:border-red-500/30 transition-all uppercase tracking-widest"
-            >
-              Clear All
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Desktop Tasks Per Page Selector */}
+              <div className="hidden md:flex items-center gap-1.5 bg-black/20 px-2.5 py-1.5 rounded-lg border border-zinc-800/50 mr-2">
+                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mr-1">View</span>
+                {[5, 10, 25, 50].map(size => (
+                  <button
+                    key={size}
+                    onClick={() => {
+                      setTasksPerPage(size);
+                      setCurrentPage(1);
+                      localStorage.setItem("tasks_per_page", String(size));
+                    }}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${tasksPerPage === size ? "bg-indigo-600/30 text-indigo-400 border border-indigo-500/30" : "text-zinc-600 hover:text-zinc-400"}`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={handleClearAll}
+                className="text-[10px] font-black text-red-400/60 hover:text-red-400 px-3 py-1.5 rounded-lg border border-red-500/10 hover:border-red-500/30 transition-all uppercase tracking-widest"
+              >
+                Clear All
+              </button>
+            </div>
           )}
         </div>
 
@@ -245,28 +264,50 @@ export const TaskList: React.FC = () => {
 
         {/* Pagination (Top) */}
         {totalPages >= 1 && (
-          <div className="flex justify-between items-center bg-black/20 border border-zinc-800/50 p-2 rounded-xl">
-            <button
-              disabled={validPage === 1}
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-              Prev
-            </button>
+          <div className="flex justify-between items-center bg-black/20 border border-zinc-800/50 p-2 rounded-xl gap-2">
+            <div className="flex items-center gap-1.5">
+              <button
+                disabled={validPage === 1}
+                onClick={() => setCurrentPage(1)}
+                className="flex items-center justify-center w-8 h-8 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
+                title="First Page"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline></svg>
+              </button>
+              <button
+                disabled={validPage === 1}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                <span className="hidden xs:inline">Prev</span>
+              </button>
+            </div>
+
             <span className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em]">
               Page {validPage} / {totalPages}
             </span>
-            <button
-              disabled={validPage === totalPages}
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
-              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
-            >
-              Next
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </button>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                disabled={validPage === totalPages}
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
+              >
+                <span className="hidden xs:inline">Next</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
+              <button
+                disabled={validPage === totalPages}
+                onClick={() => setCurrentPage(totalPages)}
+                className="flex items-center justify-center w-8 h-8 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
+                title="Last Page"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -15,7 +15,7 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
   const [selectedImage, setSelectedImage] = useState<any | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const pageSize = 24; // Divisible by 2, 3, 4, and 6 for cleaner CSS grid rows
+  const [pageSize, setPageSize] = useState(() => Number(localStorage.getItem("gallery_page_size")) || 24);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
@@ -61,7 +61,7 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [page]);
+  }, [page, pageSize]);
 
   const handlePrevImage = React.useCallback(() => {
     if (!selectedImage) return;
@@ -236,16 +236,17 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
               if (selectionMode) setSelectedImages(new Set());
             }}
             className={`flex-1 sm:flex-none text-[10px] sm:text-xs font-bold uppercase tracking-wider px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl transition-all border flex items-center justify-center gap-2 ${selectionMode ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20" : "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20"}`}
+            title="Toggle selection mode"
           >
             {selectionMode ? (
               <>
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                Cancel
+                <span className="hidden sm:inline">Cancel</span>
               </>
             ) : (
               <>
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><path d="M9 12l2 2 4-4"></path></svg>
-                Select Mode
+                <span className="hidden sm:inline">Select Mode</span>
               </>
             )}
           </button>
@@ -264,9 +265,10 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
                onClick={() => handleBulkDownload(images.filter(img => selectedImages.has(img.filename)))}
                disabled={downloading}
                className="flex-1 sm:flex-none text-xs font-bold uppercase tracking-wider px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-indigo-500/20 active:scale-95"
+               title="Download selected images"
              >
                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-               {downloading ? "Zipping..." : "Download Selected"}
+               <span className="hidden sm:inline">{downloading ? "Zipping..." : "Download Selected"}</span>
              </button>
           )}
           {!selectionMode && images.length > 0 && (
@@ -278,33 +280,62 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
                    className="flex-1 sm:flex-none text-[9px] sm:text-[10px] font-black uppercase tracking-[0.15em] px-3 py-2.5 sm:px-4 sm:py-3 bg-zinc-800/80 border border-zinc-700 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                  >
                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                   {downloading ? "Zipping..." : "Zip Page"}
+                   <span className="hidden sm:inline">{downloading ? "Zipping..." : "Zip Page"}</span>
                  </button>
                  <button
                    onClick={handleDownloadEverything}
                    disabled={downloading}
                    className="flex-1 sm:flex-none text-[9px] sm:text-[10px] font-black uppercase tracking-[0.15em] px-4 py-2.5 sm:px-5 sm:py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-indigo-500/25 active:scale-95"
                  >
-                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round" className="hidden xs:block"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                   {downloading ? "Processing..." : "Download All"}
+                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                   <span className="hidden sm:inline">{downloading ? "Processing..." : "Download All"}</span>
                  </button>
                </div>
              </>
           )}
         </div>
+        
+        {/* Desktop Page Size Selector */}
+        <div className="hidden lg:flex items-center gap-2 bg-black/20 px-3 py-2 rounded-xl border border-zinc-800/50">
+          <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mr-1">Images</span>
+          {[24, 48, 96].map(size => (
+            <button
+              key={size}
+              onClick={() => {
+                setPageSize(size);
+                setPage(1);
+                localStorage.setItem("gallery_page_size", String(size));
+              }}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${pageSize === size ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"}`}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Pagination (Top) */}
       {totalPages > 1 && (
-        <div className="flex justify-between items-center bg-zinc-900/50 border border-zinc-800/50 p-2 sm:p-3 rounded-xl">
-          <button
-            disabled={page === 1}
-            onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-            Prev
-          </button>
+        <div className="flex justify-between items-center bg-zinc-900/50 border border-zinc-800/50 p-2 sm:p-3 rounded-xl gap-2">
+          <div className="flex items-center gap-1.5">
+            <button
+              disabled={page === 1}
+              onClick={() => setPage(1)}
+              className="flex items-center justify-center w-9 h-9 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
+              title="First Page"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline></svg>
+            </button>
+            <button
+              disabled={page === 1}
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              <span className="hidden xs:inline">Prev</span>
+            </button>
+          </div>
+
           <div className="flex flex-col items-center">
             <span className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em]">
               Page {page} of {totalPages}
@@ -324,14 +355,25 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
                })}
             </div>
           </div>
-          <button
-            disabled={page === totalPages}
-            onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
-          >
-            Next
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-          </button>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              disabled={page === totalPages}
+              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
+            >
+              <span className="hidden xs:inline">Next</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+            <button
+              disabled={page === totalPages}
+              onClick={() => setPage(totalPages)}
+              className="flex items-center justify-center w-9 h-9 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 disabled:cursor-not-allowed rounded-lg text-zinc-300 transition-all border border-zinc-700/50"
+              title="Last Page"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>
+            </button>
+          </div>
         </div>
       )}
 

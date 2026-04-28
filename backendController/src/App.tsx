@@ -9,14 +9,17 @@ import { StudioWorkspace } from "./components/StudioWorkspace";
 import { AuthProvider, useAuth } from "./lib/AuthContext";
 import { LoginPage } from "./components/LoginPage";
 import { RegisterPage } from "./components/RegisterPage";
+import { AccountPage } from "./components/AccountPage";
+import { useSettings } from "./lib/settings-context";
 
 function MainInterface() {
   const [activeTab, setActiveTab] = useState<
-    "studio" | "tasks" | "gallery" | "chat"
+    "studio" | "tasks" | "gallery" | "chat" | "profile"
   >("studio");
 
   const [isBackendReady, setIsBackendReady] = useState(false);
   const { user, logout } = useAuth();
+  const { settings } = useSettings();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [queueStats, setQueueStats] = useState({
     queued: 0,
@@ -85,9 +88,7 @@ function MainInterface() {
   }
 
   return (
-    <ToastProvider>
-      <SettingsProvider>
-        <div className="flex h-screen bg-zinc-950 text-zinc-200 font-sans selection:bg-indigo-500/30 overflow-hidden relative">
+    <div className="flex h-screen bg-zinc-950 text-zinc-200 font-sans selection:bg-indigo-500/30 overflow-hidden relative">
           {/* Mobile Sidebar Overlay */}
           {isSidebarOpen && (
             <div
@@ -115,60 +116,78 @@ function MainInterface() {
             </div>
 
             <nav className="flex-1 p-4 flex flex-col gap-2">
-              <button
-                onClick={() => { setActiveTab("studio"); setIsSidebarOpen(false); }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === "studio"
-                  ? "bg-indigo-500/10 text-indigo-400"
-                  : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
-                  }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
-                Studio
-              </button>
+              {settings.navVisibility.studio && (
+                <button
+                  onClick={() => { setActiveTab("studio"); setIsSidebarOpen(false); }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === "studio"
+                    ? "bg-indigo-500/10 text-indigo-400"
+                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                    }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
+                  Studio
+                </button>
+              )}
 
-              <button
-                onClick={() => { setActiveTab("tasks"); setIsSidebarOpen(false); }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === "tasks"
-                  ? "bg-indigo-500/10 text-indigo-400"
-                  : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
-                  }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-                Tasks
-              </button>
+              {settings.navVisibility.tasks && (
+                <button
+                  onClick={() => { setActiveTab("tasks"); setIsSidebarOpen(false); }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === "tasks"
+                    ? "bg-indigo-500/10 text-indigo-400"
+                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                    }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                  Tasks
+                </button>
+              )}
 
-              <button
-                onClick={() => { setActiveTab("gallery"); setIsSidebarOpen(false); }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === "gallery"
-                  ? "bg-indigo-500/10 text-indigo-400"
-                  : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
-                  }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                Gallery
-              </button>
+              {settings.navVisibility.gallery && (
+                <button
+                  onClick={() => { setActiveTab("gallery"); setIsSidebarOpen(false); }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === "gallery"
+                    ? "bg-indigo-500/10 text-indigo-400"
+                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                    }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                  Gallery
+                </button>
+              )}
 
-              <button
-                onClick={() => { setActiveTab("chat"); setIsSidebarOpen(false); }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === "chat"
-                  ? "bg-indigo-500/10 text-indigo-400"
-                  : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
-                  }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                Stories
-              </button>
+              {settings.navVisibility.chat && (
+                <button
+                  onClick={() => { setActiveTab("chat"); setIsSidebarOpen(false); }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === "chat"
+                    ? "bg-indigo-500/10 text-indigo-400"
+                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                    }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                  Stories
+                </button>
+              )}
             </nav>
 
             <div className="p-4 border-t border-zinc-800">
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold">
+              <button
+                onClick={() => { setActiveTab("profile"); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === "profile"
+                  ? "bg-zinc-800 ring-1 ring-zinc-700"
+                  : "hover:bg-zinc-800/50 group"
+                  }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-bold shadow-lg shadow-indigo-500/10 group-hover:scale-105 transition-transform">
                   {user?.username.charAt(0).toUpperCase()}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{user?.username}</p>
-                  <button onClick={logout} className="text-[10px] text-zinc-500 hover:text-zinc-300 p-2 -m-2">Logout</button>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-sm font-semibold text-white truncate">{user?.username}</p>
+                  <p className="text-[10px] text-zinc-500 group-hover:text-zinc-400 transition-colors">Account Settings</p>
                 </div>
+              </button>
+              <div className="mt-2 px-4 flex justify-between items-center">
+                <button onClick={logout} className="text-[10px] text-zinc-500 hover:text-red-400 transition-colors py-2">Sign Out</button>
+                <span className="text-[10px] text-zinc-800 font-mono">v1.2.0</span>
               </div>
             </div>
           </aside>
@@ -191,7 +210,9 @@ function MainInterface() {
                       ? "Gallery"
                       : activeTab === "chat"
                         ? "Stories"
-                        : "Tasks"}
+                        : activeTab === "profile"
+                          ? "Account"
+                          : "Tasks"}
                 </h2>
               </div>
               <div className="flex items-center gap-3">
@@ -225,11 +246,13 @@ function MainInterface() {
               <div className={`max-w-7xl mx-auto h-full flex-col gap-6 ${activeTab === "chat" ? "flex" : "hidden"}`} style={{ height: "calc(100vh - 140px)" }}>
                 <ChatApp />
               </div>
+
+              <div className={`max-w-7xl mx-auto flex-col gap-6 ${activeTab === "profile" ? "flex" : "hidden"}`}>
+                <AccountPage />
+              </div>
             </main>
-          </div>
-        </div>
-      </SettingsProvider>
-    </ToastProvider>
+      </div>
+    </div>
   );
 }
 
@@ -271,7 +294,11 @@ function AuthWrapper() {
 export default function App() {
   return (
     <AuthProvider>
-      <AuthWrapper />
+      <ToastProvider>
+        <SettingsProvider>
+          <AuthWrapper />
+        </SettingsProvider>
+      </ToastProvider>
     </AuthProvider>
   );
 }

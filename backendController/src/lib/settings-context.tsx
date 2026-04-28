@@ -9,6 +9,12 @@ interface Settings {
   availableWorkflows: string[];
   positivePrompt: string;
   negativePrompt: string;
+  navVisibility: {
+    studio: boolean;
+    tasks: boolean;
+    gallery: boolean;
+    chat: boolean;
+  };
 }
 
 interface SettingsContextType {
@@ -28,6 +34,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     availableWorkflows: ["anima.json"],
     positivePrompt: "masterpiece, best quality, 1girl, highly detailed",
     negativePrompt: "worst quality, low quality, bad anatomy",
+    navVisibility: {
+      studio: true,
+      tasks: true,
+      gallery: true,
+      chat: true,
+    },
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -38,7 +50,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          setSettings(prev => ({ ...prev, ...parsed }));
+          setSettings(prev => ({
+            ...prev,
+            ...parsed,
+            // Ensure navVisibility exists even if localStorage has old schema
+            navVisibility: parsed.navVisibility || prev.navVisibility
+          }));
           setIsLoading(false);
         } catch (e) {
           console.error("Failed to parse saved settings", e);
@@ -49,12 +66,19 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       try {
         const config = await apiClient.getConfig();
         setSettings(prev => {
-          const initialSettings = {
+          const initialSettings: Settings = {
+            ...prev,
             width: prev.width || config.default_width,
             height: prev.height || config.default_height,
             steps: prev.steps || config.ksampler_steps,
             workflow: prev.workflow || config.default_workflow || "anima.json",
             availableWorkflows: config.available_workflows || ["anima.json"],
+            navVisibility: prev.navVisibility || {
+              studio: true,
+              tasks: true,
+              gallery: true,
+              chat: true,
+            }
           };
           localStorage.setItem("gen_settings", JSON.stringify(initialSettings));
           return initialSettings;

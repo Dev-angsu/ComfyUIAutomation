@@ -61,3 +61,7 @@ Maintain the name of the picture saved in the output folder in comfy ui as per t
 
 Can we make the picture save location to a default location on the system rather than in comfy ui's output folder?
 
+1. Let user decide how many recent tasks to view per page (5/10/25/50) 2. Make the Select mode/download box in the mobile view not take that much space, just 3 icons instead of those big buttons. 3. Also give the user choice to show the number of images to show in the image gallery per page(24/48/96).
+
+
+1. Create an account page for the profile with all the details of the profile along with provision in design for extension in future  when more features will be added. 2. Add a section for settings in profile. In it maintain settings for which Features among the navigation pane the user wants to see. By default everything is on. 
