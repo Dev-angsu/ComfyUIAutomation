@@ -259,39 +259,38 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
           )}
         </div>
         
-        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+        {/* Floating Download Buttons on Mobile / Toolbar on Desktop */}
+        <div className="fixed bottom-6 right-6 lg:relative lg:bottom-auto lg:right-auto z-[60] flex flex-col-reverse lg:flex-row items-end lg:items-center gap-4 lg:gap-2 pointer-events-none">
           {selectionMode && selectedImages.size > 0 && (
              <button
                onClick={() => handleBulkDownload(images.filter(img => selectedImages.has(img.filename)))}
                disabled={downloading}
-               className="flex-1 sm:flex-none text-xs font-bold uppercase tracking-wider px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-indigo-500/20 active:scale-95"
+               className="w-14 h-14 lg:w-auto lg:h-auto lg:flex-1 sm:lg:flex-none text-xs font-bold uppercase tracking-wider lg:px-5 lg:py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full lg:rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-2xl lg:shadow-lg shadow-indigo-500/40 lg:shadow-indigo-500/20 active:scale-95 pointer-events-auto backdrop-blur-xl border border-white/10 lg:border-none"
                title="Download selected images"
              >
-               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-               <span className="hidden sm:inline">{downloading ? "Zipping..." : "Download Selected"}</span>
+               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" className="lg:w-[14px] lg:h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+               <span className="hidden lg:inline">{downloading ? "Zipping..." : "Download Selected"}</span>
              </button>
           )}
           {!selectionMode && images.length > 0 && (
-             <>
-               <div className="flex items-center gap-2 w-full sm:w-auto">
-                 <button
-                   onClick={() => handleBulkDownload(images)}
-                   disabled={downloading}
-                   className="flex-1 sm:flex-none text-[9px] sm:text-[10px] font-black uppercase tracking-[0.15em] px-3 py-2.5 sm:px-4 sm:py-3 bg-zinc-800/80 border border-zinc-700 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                 >
-                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                   <span className="hidden sm:inline">{downloading ? "Zipping..." : "Zip Page"}</span>
-                 </button>
-                 <button
-                   onClick={handleDownloadEverything}
-                   disabled={downloading}
-                   className="flex-1 sm:flex-none text-[9px] sm:text-[10px] font-black uppercase tracking-[0.15em] px-4 py-2.5 sm:px-5 sm:py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-indigo-500/25 active:scale-95"
-                 >
-                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                   <span className="hidden sm:inline">{downloading ? "Processing..." : "Download All"}</span>
-                 </button>
-               </div>
-             </>
+             <div className="flex flex-col-reverse lg:flex-row items-end lg:items-center gap-4 lg:gap-2 pointer-events-none">
+               <button
+                 onClick={() => handleBulkDownload(images)}
+                 disabled={downloading}
+                 className="w-14 h-14 lg:w-auto lg:h-auto lg:flex-1 sm:lg:flex-none text-[9px] sm:lg:text-[10px] font-black uppercase tracking-[0.15em] lg:px-3 lg:py-2.5 sm:lg:px-4 sm:lg:py-3 bg-zinc-800/90 lg:bg-zinc-800/80 border border-zinc-700/50 lg:border-zinc-700 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-full lg:rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-2xl lg:shadow-none backdrop-blur-xl pointer-events-auto"
+               >
+                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" className="lg:w-[14px] lg:h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                 <span className="hidden lg:inline">{downloading ? "Zipping..." : "Zip Page"}</span>
+               </button>
+               <button
+                 onClick={handleDownloadEverything}
+                 disabled={downloading}
+                 className="w-14 h-14 lg:w-auto lg:h-auto lg:flex-1 sm:lg:flex-none text-[9px] sm:lg:text-[10px] font-black uppercase tracking-[0.15em] lg:px-4 lg:py-2.5 sm:lg:px-5 sm:lg:py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full lg:rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-2xl lg:shadow-lg shadow-indigo-500/40 lg:shadow-indigo-500/25 active:scale-95 backdrop-blur-xl pointer-events-auto border border-white/10 lg:border-none"
+               >
+                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" className="lg:w-[14px] lg:h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                 <span className="hidden lg:inline">{downloading ? "Processing..." : "Download All"}</span>
+               </button>
+             </div>
           )}
         </div>
         
