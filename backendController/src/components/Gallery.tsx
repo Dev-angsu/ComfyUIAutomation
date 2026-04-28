@@ -63,6 +63,32 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
     return () => clearInterval(interval);
   }, [page]);
 
+  const handlePrevImage = React.useCallback(() => {
+    if (!selectedImage) return;
+    const currentIndex = images.findIndex((img) => img.filename === selectedImage.filename);
+    if (currentIndex === -1) return;
+
+    if (currentIndex > 0) {
+      setSelectedImage(images[currentIndex - 1]);
+    } else if (page > 1) {
+      pendingNavRef.current = "prev";
+      setPage(page - 1);
+    }
+  }, [images, selectedImage, page]);
+
+  const handleNextImage = React.useCallback(() => {
+    if (!selectedImage) return;
+    const currentIndex = images.findIndex((img) => img.filename === selectedImage.filename);
+    if (currentIndex === -1) return;
+
+    if (currentIndex < images.length - 1) {
+      setSelectedImage(images[currentIndex + 1]);
+    } else if (page < totalPages) {
+      pendingNavRef.current = "next";
+      setPage(page + 1);
+    }
+  }, [images, selectedImage, page, totalPages]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -71,28 +97,15 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
       
       if (!selectedImage) return;
 
-      const currentIndex = images.findIndex((img) => img.filename === selectedImage.filename);
-      if (currentIndex === -1) return;
-
       if (e.key === "ArrowLeft") {
-        if (currentIndex > 0) {
-          setSelectedImage(images[currentIndex - 1]);
-        } else if (page > 1) {
-          pendingNavRef.current = "prev";
-          setPage(page - 1);
-        }
+        handlePrevImage();
       } else if (e.key === "ArrowRight") {
-        if (currentIndex < images.length - 1) {
-          setSelectedImage(images[currentIndex + 1]);
-        } else if (page < totalPages) {
-          pendingNavRef.current = "next";
-          setPage(page + 1);
-        }
+        handleNextImage();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [images, selectedImage, page, totalPages]);
+  }, [selectedImage, handlePrevImage, handleNextImage]);
 
   const getImageUrl = (img: any) => {
     const path = img.url || img.file_path || "";
@@ -354,6 +367,29 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
+
+          {/* Navigation Controls (Bottom Center) */}
+          <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-6 z-10 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={handlePrevImage}
+              className="p-4 bg-white/5 hover:bg-white/10 backdrop-blur-xl rounded-2xl text-white transition-all active:scale-95 border border-white/10 group shadow-2xl"
+              title="Previous Image (Left Arrow)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round" className="group-hover:-translate-x-1 transition-transform"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            
+            <div className="px-6 py-3 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 text-white/50 text-xs font-bold tracking-widest uppercase">
+              {images.findIndex(img => img.filename === selectedImage.filename) + 1} / {images.length}
+            </div>
+
+            <button
+              onClick={handleNextImage}
+              className="p-4 bg-white/5 hover:bg-white/10 backdrop-blur-xl rounded-2xl text-white transition-all active:scale-95 border border-white/10 group shadow-2xl"
+              title="Next Image (Right Arrow)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round" className="group-hover:translate-x-1 transition-transform"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+          </div>
 
           {/* Overlaid UI Controls (Glassmorphism) Sidebar */}
           <div 
