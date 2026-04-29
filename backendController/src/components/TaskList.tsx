@@ -166,15 +166,33 @@ export const TaskList: React.FC = () => {
     return `${baseUrl}${separator}cb=${task.id}${token ? `&token=${token}` : ""}`;
   };
 
+  const handleNextTask = () => {
+    if (!selectedTask || filteredTasks.length <= 1) return;
+    const currentIndex = filteredTasks.findIndex((t) => t.id === selectedTask.id);
+    const nextIndex = (currentIndex + 1) % filteredTasks.length;
+    setSelectedTask(filteredTasks[nextIndex]);
+  };
+
+  const handlePrevTask = () => {
+    if (!selectedTask || filteredTasks.length <= 1) return;
+    const currentIndex = filteredTasks.findIndex((t) => t.id === selectedTask.id);
+    const prevIndex = (currentIndex - 1 + filteredTasks.length) % filteredTasks.length;
+    setSelectedTask(filteredTasks[prevIndex]);
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setSelectedTask(null);
+      } else if (e.key === "ArrowRight") {
+        handleNextTask();
+      } else if (e.key === "ArrowLeft") {
+        handlePrevTask();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [selectedTask, filteredTasks]);
 
   const formatDateTime = (dateStr: string | null) => {
     if (!dateStr) return "N/A";
@@ -667,6 +685,32 @@ export const TaskList: React.FC = () => {
 
             </div>
           </div>
+
+          {/* Side Navigation Buttons */}
+          {filteredTasks.length > 1 && (
+            <div className="fixed inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 md:px-8 pointer-events-none">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePrevTask();
+                }}
+                className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full bg-zinc-800/80 hover:bg-indigo-600/90 border border-zinc-700 hover:border-indigo-500 text-zinc-400 hover:text-white transition-all pointer-events-auto shadow-2xl backdrop-blur-md group"
+                title="Previous Task (Left Arrow)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round" className="group-hover:-translate-x-0.5 transition-transform"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleNextTask();
+                }}
+                className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full bg-zinc-800/80 hover:bg-indigo-600/90 border border-zinc-700 hover:border-indigo-500 text-zinc-400 hover:text-white transition-all pointer-events-auto shadow-2xl backdrop-blur-md group"
+                title="Next Task (Right Arrow)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round" className="group-hover:translate-x-0.5 transition-transform"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

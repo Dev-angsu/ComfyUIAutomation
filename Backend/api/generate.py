@@ -197,6 +197,11 @@ async def run_csv_batch(req: CSVBatchRequest, user: User = Depends(get_current_u
 async def upload_csv_batch(
     file: UploadFile = File(..., description=".csv or .json job file"),
     global_params_json: str = Form(default="{}", description="JSON-encoded GenerationParams overrides"),
+    randomize_size: bool = Form(default=False),
+    min_ratio: float = Form(default=0.5),
+    max_ratio: float = Form(default=2.0),
+    min_res: int = Form(default=512),
+    max_res: int = Form(default=1024),
     user: User = Depends(get_current_user),
 ) -> BatchEnqueuedResponse:
     """
@@ -229,6 +234,8 @@ async def upload_csv_batch(
 
     valid_prompt_keys = {"subject", "character", "series", "artist", "general_tags", "natural_language"}
 
+    import random
+
     for raw_job in raw_jobs:
         # Skip disabled rows (handles string 'false', '0', 'no', etc.)
         enabled_val = str(raw_job.get("enabled", "true")).strip().lower()
@@ -244,11 +251,34 @@ async def upload_csv_batch(
 
         for _ in range(num_images):
             task_id = str(uuid.uuid4())
+            
+            # Start with global params
+            task_params = global_params.model_copy()
+            
+            if randomize_size:
+                # 1. Choose a random aspect ratio
+                ratio = random.uniform(min_ratio, max_ratio)
+                # 2. Choose a random resolution (long edge)
+                res = random.randint(min_res, max_res)
+                
+                # 3. Calculate width/height
+                if ratio >= 1: # Landscape or Square
+                    w = res
+                    h = res / ratio
+                else: # Portrait
+                    h = res
+                    w = res * ratio
+                
+                # 4. Round to multiple of 8
+                task_params.width = int(round(w / 8) * 8)
+                task_params.height = int(round(h / 8) * 8)
+                logger.debug(f"Randomized size for {task_id}: {task_params.width}x{task_params.height} (ratio={ratio:.2f})")
+
             task_data = _build_task_data(
                 job_type=BatchType.CSV,
                 positive_prompt=pos,
                 negative_prompt=neg,
-                params=global_params,
+                params=task_params,
                 output_prefix=prefix,
                 batch_id=batch_id,
             )

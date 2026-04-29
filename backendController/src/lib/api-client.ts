@@ -135,11 +135,28 @@ export const apiClient = {
     return response.json();
   },
 
-  async uploadCSVBatch(file: File, params?: GenerationParams) {
+  async uploadCSVBatch(
+    file: File, 
+    params?: GenerationParams,
+    randomization?: {
+      randomize_size: boolean;
+      min_ratio: number;
+      max_ratio: number;
+      min_res: number;
+      max_res: number;
+    }
+  ) {
     const formData = new FormData();
     formData.append("file", file);
     if (params) {
       formData.append("global_params_json", JSON.stringify(params));
+    }
+    if (randomization) {
+      formData.append("randomize_size", String(randomization.randomize_size));
+      formData.append("min_ratio", String(randomization.min_ratio));
+      formData.append("max_ratio", String(randomization.max_ratio));
+      formData.append("min_res", String(randomization.min_res));
+      formData.append("max_res", String(randomization.max_res));
     }
 
     const headers = { ...getAuthHeaders() };
