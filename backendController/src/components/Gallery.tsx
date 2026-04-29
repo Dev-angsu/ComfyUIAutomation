@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { apiClient } from "../lib/api-client";
 import { useToast } from "../lib/toast-context";
 import { useSettings } from "../lib/settings-context";
@@ -7,6 +7,33 @@ import saveAs from "file-saver";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
 const API_ROOT = `http://${window.location.hostname}:8000`; // Dynamically use the correct host
+
+// ── Browser Cache API helpers ──────────────────────────────────────────────
+const GALLERY_CACHE_NAME = "gallery-images-v1";
+
+/**
+ * Removes stale entries from the browser Cache API.
+ * Any cached image URL whose filename is not in the current gallery is deleted.
+ * This keeps the cache clean when ComfyUI deletes an image.
+ */
+async function pruneGalleryCache(validFilenames: Set<string>): Promise<void> {
+  if (typeof caches === "undefined") return;
+  try {
+    const cache = await caches.open(GALLERY_CACHE_NAME);
+    const keys = await cache.keys();
+    for (const req of keys) {
+      // Extract filename from URL path: /api/images/<filename>
+      const url = new URL(req.url);
+      const parts = url.pathname.split("/");
+      const fname = parts[parts.length - 1];
+      if (fname && !validFilenames.has(fname)) {
+        await cache.delete(req);
+      }
+    }
+  } catch (e) {
+    // Cache API not available or blocked — silently ignore
+  }
+}
 
 export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "gallery" | "chat") => void }> = ({ onNavigate }) => {
   const { addToast } = useToast();
@@ -20,33 +47,38 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
 
-  // Cache busting tracking
-  const seenUrls = useRef<Record<string, number>>({});
-  const lastTotal = useRef<number>(0);
+  // Tracks the last-known image filename fingerprint so polling only re-renders on real changes
+  const prevFingerprintRef = useRef<string>("");
   const pendingNavRef = useRef<"prev" | "next" | null>(null);
   const isDragging = useRef(false);
 
   useEffect(() => {
     const fetchGallery = async () => {
       try {
-        // Using standard fetch explicitly to pass pagination parameters
         const data = await apiClient.getGallery(page, pageSize);
-        setImages(data.images || []);
+        const incoming: any[] = data.images || [];
 
-        if (pendingNavRef.current === "prev" && data.images?.length > 0) {
-          setSelectedImage(data.images[data.images.length - 1]);
-        } else if (pendingNavRef.current === "next" && data.images?.length > 0) {
-          setSelectedImage(data.images[0]);
+        // ── Smart diff: only update React state if the image list actually changed ──
+        // Using filenames as a lightweight fingerprint avoids unnecessary re-renders
+        // which would reset `isLoaded` on every ImageCard and cause the black-flash.
+        const fingerprint = incoming.map((i: any) => i.filename).join(",");
+        if (fingerprint !== prevFingerprintRef.current) {
+          prevFingerprintRef.current = fingerprint;
+          setImages(incoming);
+
+          // Prune browser Cache API: remove entries for images no longer in the gallery
+          const validNames = new Set<string>(incoming.map((i: any) => i.filename));
+          pruneGalleryCache(validNames);
+        }
+
+        if (pendingNavRef.current === "prev" && incoming.length > 0) {
+          setSelectedImage(incoming[incoming.length - 1]);
+        } else if (pendingNavRef.current === "next" && incoming.length > 0) {
+          setSelectedImage(incoming[0]);
         }
         pendingNavRef.current = null;
 
         if (data.total !== undefined) {
-          // Detect history reset to bust cache for overlapping filenames
-          if (data.total < lastTotal.current) {
-            seenUrls.current = {};
-          }
-          lastTotal.current = data.total;
-
           setTotalPages(Math.ceil(data.total / pageSize) || 1);
         }
       } catch (err) {
@@ -54,6 +86,8 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
       }
     };
 
+    // Reset fingerprint when page/pageSize changes so we always render on navigation
+    prevFingerprintRef.current = "";
     fetchGallery();
     // Only run live background refreshes when looking at the first page
     const interval = setInterval(() => {
@@ -107,21 +141,21 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedImage, handlePrevImage, handleNextImage]);
 
-  const getImageUrl = (img: any) => {
+  const getImageUrl = useCallback((img: any) => {
     const path = img.url || img.file_path || "";
     if (!path) return "";
     const baseUrl = path.startsWith("http")
       ? path
       : `${API_ROOT}${path.startsWith("/") ? "" : "/"}${path}`;
 
-    // Track first-seen timestamp to bust disk cache without causing infinite React render flickering
-    if (!seenUrls.current[baseUrl]) {
-      seenUrls.current[baseUrl] = Date.now();
-    }
+    // Append only the auth token — no cache-buster timestamp.
+    // Images have stable, unique filenames from ComfyUI so the browser's
+    // built-in HTTP cache (+ Cache-Control: immutable from the server) handles
+    // persistence across page reloads without ever re-fetching.
     const token = localStorage.getItem("token");
     const separator = baseUrl.includes("?") ? "&" : "?";
-    return `${baseUrl}${separator}cb=${seenUrls.current[baseUrl]}${token ? `&token=${token}` : ""}`;
-  };
+    return token ? `${baseUrl}${separator}token=${token}` : baseUrl;
+  }, []);
 
   const handleRecreate = async (img: any) => {
     try {
@@ -642,7 +676,7 @@ const MasonryGallery: React.FC<{
             const ar = img.width && img.height ? img.width / img.height : (cachedAR || 1);
             return (
               <ImageCard
-                key={`${cIdx}-${iIdx}`}
+                key={img.filename}
                 img={img}
                 getImageUrl={getImageUrl}
                 selectionMode={selectionMode}
@@ -680,11 +714,15 @@ const ImageCard = ({
   aspectRatio: number;
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const url = getImageUrl(img);
 
-  useEffect(() => {
-    setIsLoaded(false);
-  }, [url]);
+  // Only reset loaded state when the URL itself changes (not on every parent re-render)
+  const prevUrlRef = useRef(url);
+  if (prevUrlRef.current !== url) {
+    prevUrlRef.current = url;
+    // Reset via ref comparison instead of useEffect to avoid an extra render cycle
+  }
 
   return (
     <div
@@ -707,24 +745,42 @@ const ImageCard = ({
           </div>
         </div>
       )}
-      <img
-        src={url}
-        alt={img.prompt || "Generated Image"}
-        onLoad={(e) => {
-          setIsLoaded(true);
-          if ((!img.width || !img.height) && onDimensionsFound) {
-            const ratio = e.currentTarget.naturalWidth / e.currentTarget.naturalHeight;
-            if (ratio && !isNaN(ratio)) {
-              onDimensionsFound(img.filename, ratio);
+      {hasError ? (
+        /* Broken-image placeholder shown when ComfyUI no longer has this file */
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-900 text-zinc-600 select-none">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLineJoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+            <line x1="2" y1="2" x2="22" y2="22"></line>
+          </svg>
+          <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">Unavailable</span>
+        </div>
+      ) : (
+        <img
+          src={url}
+          alt={img.prompt || "Generated Image"}
+          onLoad={(e) => {
+            setIsLoaded(true);
+            setHasError(false);
+            if ((!img.width || !img.height) && onDimensionsFound) {
+              const ratio = e.currentTarget.naturalWidth / e.currentTarget.naturalHeight;
+              if (ratio && !isNaN(ratio)) {
+                onDimensionsFound(img.filename, ratio);
+              }
             }
-          }
-        }}
-        className={`object-cover w-full h-full transition-all duration-700 ease-out ${
-          isLoaded
-            ? "opacity-100 blur-0 group-hover:scale-105"
-            : "opacity-0 blur-md scale-105"
-        }`}
-      />
+          }}
+          onError={() => {
+            setHasError(true);
+            setIsLoaded(false);
+          }}
+          className={`object-cover w-full h-full transition-all duration-700 ease-out ${
+            isLoaded
+              ? "opacity-100 blur-0 group-hover:scale-105"
+              : "opacity-0 blur-md scale-105"
+          }`}
+        />
+      )}
       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-colors duration-300 flex items-end opacity-0 group-hover:opacity-100 p-4">
         <p className="text-[11px] text-zinc-200 line-clamp-3 leading-snug">
           {img.positive_prompt || img.filename}

@@ -15,6 +15,7 @@ The proxy endpoint (/api/images) stays unchanged in both phases.
 """
 
 import logging
+from collections import OrderedDict
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Depends
@@ -28,6 +29,33 @@ from workers.queue_worker import task_store
 
 router = APIRouter(prefix="/api", tags=["Gallery"])
 logger = logging.getLogger(__name__)
+
+# ── In-memory LRU image byte cache ───────────────────────────────────────────
+# Keyed by (filename, subfolder, type).  Max 500 entries at ~1.5 MB each ≈ 750 MB cap.
+_IMAGE_CACHE_MAX = 500
+_image_cache: OrderedDict[tuple, bytes] = OrderedDict()
+
+
+def _cache_get(key: tuple) -> Optional[bytes]:
+    """Return cached bytes and move entry to MRU position, or None on miss."""
+    if key in _image_cache:
+        _image_cache.move_to_end(key)
+        return _image_cache[key]
+    return None
+
+
+def _cache_put(key: tuple, data: bytes) -> None:
+    """Insert or refresh an entry, evicting the LRU entry when full."""
+    if key in _image_cache:
+        _image_cache.move_to_end(key)
+    _image_cache[key] = data
+    if len(_image_cache) > _IMAGE_CACHE_MAX:
+        _image_cache.popitem(last=False)  # evict oldest
+
+
+def _cache_delete(key: tuple) -> None:
+    """Remove a single entry if it exists (called when ComfyUI 404s)."""
+    _image_cache.pop(key, None)
 
 
 def _make_image_info(
@@ -322,14 +350,28 @@ async def proxy_image(
     if subfolder and any(c in subfolder for c in ("..", "\x00")):
         raise HTTPException(status_code=400, detail="Invalid subfolder")
 
-    try:
-        image_bytes = await comfy_adapter.get_image_bytes(filename, subfolder, type)
-    except Exception as exc:
-        logger.error(f"Image proxy error for '{filename}': {exc}")
-        raise HTTPException(
-            status_code=502,
-            detail=f"Could not fetch '{filename}' from ComfyUI at {settings.comfy_server}",
-        )
+    cache_key = (filename, subfolder, type)
+
+    # ── Check in-memory LRU cache first ──────────────────────────────────────
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        logger.debug(f"Image cache HIT for '{filename}'")
+    else:
+        # ── Cache miss — fetch from ComfyUI ───────────────────────────────────
+        logger.debug(f"Image cache MISS for '{filename}' — fetching from ComfyUI")
+        try:
+            cached = await comfy_adapter.get_image_bytes(filename, subfolder, type)
+            _cache_put(cache_key, cached)
+        except Exception as exc:
+            # If ComfyUI says the image is gone, remove any stale entry
+            _cache_delete(cache_key)
+            logger.error(f"Image proxy error for '{filename}': {exc}")
+            raise HTTPException(
+                status_code=502,
+                detail=f"Could not fetch '{filename}' from ComfyUI at {settings.comfy_server}",
+            )
+
+    image_bytes = cached
 
     # Determine MIME type from extension
     lower = filename.lower()
@@ -346,7 +388,7 @@ async def proxy_image(
         content=image_bytes,
         media_type=media_type,
         headers={
-            # Allow frontend to cache images — they're immutable once generated
+            # Stable URLs + immutable = browser caches forever (images never change once generated)
             "Cache-Control": "public, max-age=31536000, immutable",
         },
     )

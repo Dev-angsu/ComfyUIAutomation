@@ -65,3 +65,9 @@ Can we make the picture save location to a default location on the system rather
 
 
 1. Create an account page for the profile with all the details of the profile along with provision in design for extension in future  when more features will be added. 2. Add a section for settings in profile. In it maintain settings for which Features among the navigation pane the user wants to see. By default everything is on. 
+
+
+TODOS NOW
+1.Currently the images are not loading in time, it's taking a lot of time. Also, whenever a new image is created by comfy ui and added to the galary, it's loading the images again/ all images except the new one is staying black. Find out why. Fix it. If I refresh the page, then images are loaded again. How to cache the images, so that once loaded in my frontend, it doesnt have to load even after reload, unless comfyui itself doesnt have the image anymore, then delete the cached image. Fix these inconsistencies to improve the user experience. 
+
+2.
