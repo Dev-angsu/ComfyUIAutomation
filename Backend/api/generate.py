@@ -22,7 +22,8 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Depends
 from core.auth import get_current_user
-from core.database import User
+from core.database import User, SessionLocal, get_db
+from sqlalchemy.orm import Session
 from adapters.job_parsers import JobLoader
 from config import settings
 from core.prompt_engine import build_negative_prompt, build_positive_prompt, build_dynamic_prompt
@@ -511,3 +512,36 @@ async def get_prompt_guidelines() -> dict:
     except Exception as e:
         logger.error(f"Error reading prompt.txt: {e}")
         raise HTTPException(status_code=500, detail=f"Error reading prompt.txt: {str(e)}")
+
+
+# ── Execution Control (Pause/Resume) ───────────────────────────────────────────
+
+@router.post("/pause", summary="Pause execution for current user")
+async def pause_execution(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    db_user = db.query(User).filter(User.id == user.id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    db_user.is_paused = True
+    db.commit()
+    generation_queue.pause_user(user.id)
+    logger.info(f"Execution paused for user: {user.username} (id={user.id})")
+    return {"status": "paused", "is_paused": True}
+
+
+@router.post("/resume", summary="Resume execution for current user")
+async def resume_execution(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    db_user = db.query(User).filter(User.id == user.id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    db_user.is_paused = False
+    db.commit()
+    generation_queue.resume_user(user.id)
+    logger.info(f"Execution resumed for user: {user.username} (id={user.id})")
+    return {"status": "resumed", "is_paused": False}
+
+
+@router.get("/pause-status", summary="Get pause status for current user")
+async def get_pause_status(user: User = Depends(get_current_user)) -> dict:
+    return {"is_paused": user.is_paused}

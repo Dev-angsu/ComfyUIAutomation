@@ -10,6 +10,7 @@ export const TaskList: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [tasksPerPage, setTasksPerPage] = useState(() => Number(localStorage.getItem("tasks_per_page")) || 5);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -26,6 +27,18 @@ export const TaskList: React.FC = () => {
     fetchTasks();
     const interval = setInterval(fetchTasks, 3000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const fetchPauseStatus = async () => {
+      try {
+        const res = await apiClient.getPauseStatus();
+        setIsPaused(res.is_paused);
+      } catch (err) {
+        console.error("Failed to fetch pause status", err);
+      }
+    };
+    fetchPauseStatus();
   }, []);
 
   const handleDeleteTask = async (e: React.MouseEvent, taskId: string) => {
@@ -48,6 +61,22 @@ export const TaskList: React.FC = () => {
       setTasks([]);
     } catch (err) {
       addToast("Failed to clear tasks", "error");
+    }
+  };
+
+  const handleTogglePause = async () => {
+    try {
+      if (isPaused) {
+        await apiClient.resumeExecution();
+        setIsPaused(false);
+        addToast("Execution resumed", "success");
+      } else {
+        await apiClient.pauseExecution();
+        setIsPaused(true);
+        addToast("Execution paused — current task will finish", "info");
+      }
+    } catch (err) {
+      addToast(`Failed to ${isPaused ? "resume" : "pause"} execution`, "error");
     }
   };
 
@@ -205,6 +234,26 @@ export const TaskList: React.FC = () => {
                   </button>
                 ))}
               </div>
+              <button
+                onClick={handleTogglePause}
+                className={`flex items-center gap-2 text-[10px] font-black px-3 py-1.5 rounded-lg border transition-all uppercase tracking-widest ${
+                  isPaused 
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:border-emerald-500/40" 
+                    : "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:border-amber-500/40"
+                }`}
+              >
+                {isPaused ? (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    Resume
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                    Pause
+                  </>
+                )}
+              </button>
               <button
                 onClick={handleClearAll}
                 className="text-[10px] font-black text-red-400/60 hover:text-red-400 px-3 py-1.5 rounded-lg border border-red-500/10 hover:border-red-500/30 transition-all uppercase tracking-widest"

@@ -199,4 +199,31 @@ export const apiClient = {
     if (!response.ok) throw new Error("Failed to fetch prompt guidelines");
     return response.json();
   },
+
+  async pauseExecution() {
+    const response = await fetch(`${API_BASE}/pause`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to pause execution");
+    return response.json();
+  },
+
+  async resumeExecution() {
+    const response = await fetch(`${API_BASE}/resume`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to resume execution");
+    return response.json();
+  },
+
+  async getPauseStatus() {
+    const response = await fetch(`${API_BASE}/pause-status`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to fetch pause status");
+    return response.json();
+  },
 };

@@ -10,7 +10,7 @@ from adapters.comfy_client import comfy_adapter
 from config import settings
 from core.prompt_engine import build_negative_prompt
 from core.workflow_builder import ComfyWorkflowBuilder
-from core.database import SessionLocal, Task, Batch
+from core.database import SessionLocal, Task, Batch, User
 from models.schemas import BatchStatus, TaskStatus
 
 logger = logging.getLogger(__name__)
@@ -242,6 +242,19 @@ class FairQueue:
         self._users: list[int] = [] # Order of users for round-robin
         self._current_user_idx = 0
         self._condition = asyncio.Condition()
+        self._paused_users: set[int] = set()
+
+    def pause_user(self, user_id: int):
+        self._paused_users.add(user_id)
+
+    def resume_user(self, user_id: int):
+        self._paused_users.discard(user_id)
+        # Notify the worker that a user might have been unpaused
+        asyncio.create_task(self._notify_resume())
+
+    async def _notify_resume(self):
+        async with self._condition:
+            self._condition.notify_all()
 
     async def put(self, user_id: int, task_id: str) -> None:
         async with self._condition:
@@ -254,31 +267,47 @@ class FairQueue:
 
     async def get(self) -> str:
         async with self._condition:
-            while not self._users:
-                await self._condition.wait()
-            
-            # Find next user who actually has tasks
             while True:
-                user_id = self._users[self._current_user_idx]
-                user_queue = self._queues[user_id]
+                # Filter out users who are paused
+                available_users = [uid for uid in self._users if uid not in self._paused_users]
                 
-                if user_queue:
-                    task_id = user_queue.pop(0)
-                    # Move pointer to next user for next request
-                    self._current_user_idx = (self._current_user_idx + 1) % len(self._users)
-                    return task_id
-                else:
-                    # Cleanup empty user queue
-                    self._users.pop(self._current_user_idx)
-                    del self._queues[user_id]
+                if not available_users:
+                    await self._condition.wait()
+                    continue
+                
+                # Check if we have any tasks among available users
+                found_task = False
+                # Try to pick a task starting from current pointer
+                for _ in range(len(self._users)):
+                    user_id = self._users[self._current_user_idx]
                     
-                    if not self._users:
-                        self._current_user_idx = 0
-                        # Wait if we just emptied the last user queue
-                        while not self._users:
-                            await self._condition.wait()
+                    if user_id in self._paused_users:
+                        self._current_user_idx = (self._current_user_idx + 1) % len(self._users)
+                        continue
+                        
+                    user_queue = self._queues[user_id]
+                    if user_queue:
+                        task_id = user_queue.pop(0)
+                        # Move pointer to next user for next request
+                        self._current_user_idx = (self._current_user_idx + 1) % len(self._users)
+                        return task_id
                     else:
+                        # Cleanup empty user queue
+                        self._users.pop(self._current_user_idx)
+                        del self._queues[user_id]
+                        if not self._users:
+                            self._current_user_idx = 0
+                            break # Inner loop break, will wait in outer loop
                         self._current_user_idx %= len(self._users)
+                
+                # If we went through all users and found no tasks (or only paused ones)
+                if not self._users:
+                    await self._condition.wait()
+                else:
+                    # All available users currently have no tasks, but they might be paused
+                    # or we just cleaned up some empty queues.
+                    # Wait for more tasks or status changes.
+                    await asyncio.sleep(1) 
 
     def task_done(self):
         # Compatibility with standard asyncio.Queue if needed
@@ -326,6 +355,12 @@ async def recover_tasks() -> None:
             logger.info(f"🔄 Recovered {len(queued)} tasks ({len(executing)} were in progress)")
         else:
             logger.info("✅ No pending tasks found in database")
+
+        # 3. Recover paused users
+        paused_users = db.query(User).filter(User.is_paused == True).all()
+        for u in paused_users:
+            generation_queue.pause_user(u.id)
+            logger.info(f"⏸️  User {u.username} (id={u.id}) is recovered as PAUSED")
 
 
 # ── Worker Internals ──────────────────────────────────────────────────────────

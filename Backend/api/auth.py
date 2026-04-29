@@ -18,6 +18,7 @@ class UserResponse(BaseModel):
     id: int
     username: str
     email: Optional[str] = None
+    is_paused: bool = False
 
     class Config:
         from_attributes = True
