@@ -392,6 +392,8 @@ async def delete_task(task_id: str, user: User = Depends(get_current_user)) -> d
     success = task_store.delete_task(task_id)
     if not success:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
+    
+    await generation_queue.remove(user.id, task_id)
     return {"status": "deleted", "task_id": task_id}
 
 
@@ -401,6 +403,7 @@ async def delete_task(task_id: str, user: User = Depends(get_current_user)) -> d
 )
 async def clear_tasks(user: User = Depends(get_current_user)) -> dict:
     task_store.clear_all_tasks(user_id=user.id)
+    await generation_queue.clear(user_id=user.id)
     return {"status": "cleared"}
 
 

@@ -244,6 +244,26 @@ class FairQueue:
         self._condition = asyncio.Condition()
         self._paused_users: set[int] = set()
 
+    async def remove(self, user_id: int, task_id: str):
+        """Remove a specific task from a user's queue."""
+        async with self._condition:
+            if user_id in self._queues:
+                try:
+                    self._queues[user_id].remove(task_id)
+                except ValueError:
+                    pass
+
+    async def clear(self, user_id: Optional[int] = None):
+        """Clear all tasks for a specific user, or for all users."""
+        async with self._condition:
+            if user_id is not None:
+                if user_id in self._queues:
+                    self._queues[user_id] = []
+            else:
+                self._queues.clear()
+                self._users.clear()
+                self._current_user_idx = 0
+
     def pause_user(self, user_id: int):
         self._paused_users.add(user_id)
 
@@ -523,7 +543,18 @@ async def generation_worker() -> None:
     logger.info("🚀 Generation worker started — waiting for tasks...")
 
     while True:
-        # ── 1. Smart Pause: Wait for ComfyUI to be online ──────────────────────
+        # ── 1. Get next task ──────────────────────────────────────────────────
+        task_id: str = await generation_queue.get()
+        
+        # ── 2. Pre-flight check: skip "ghost" tasks immediately ───────────────
+        # This prevents the worker from cycling through deleted tasks slowly
+        task = task_store.get_task(task_id)
+        if not task:
+            logger.debug(f"Skipping deleted task {task_id}")
+            generation_queue.task_done()
+            continue
+
+        # ── 3. Smart Pause: Wait for ComfyUI to be online ──────────────────────
         is_online = await comfy_adapter.is_reachable()
         if not is_online:
             logger.warning("📡 ComfyUI is offline. Worker is pausing until it returns...")
@@ -531,9 +562,6 @@ async def generation_worker() -> None:
                 await asyncio.sleep(10)
             logger.info("✅ ComfyUI is back online. Resuming worker.")
 
-        # ── 2. Get next task ──────────────────────────────────────────────────
-        task_id: str = await generation_queue.get()
-        
         try:
             logger.info(f"▶️  Worker picked up task: {task_id}")
             await _run_single_task(task_id)
