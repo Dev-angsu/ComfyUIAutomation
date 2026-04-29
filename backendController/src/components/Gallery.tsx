@@ -376,33 +376,27 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
         </div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
-        {images.length === 0 ? (
-          <div className="col-span-full text-center text-zinc-500 py-12">
-            No images found in gallery.
-          </div>
-        ) : (
-          images.map((img, idx) => (
-            <ImageCard
-              key={idx}
-              img={img}
-              getImageUrl={getImageUrl}
-              selectionMode={selectionMode}
-              isSelected={selectedImages.has(img.filename)}
-              onSelect={() => toggleSelection(img.filename)}
-              onClick={() => {
-                if (selectionMode) {
-                  toggleSelection(img.filename);
-                } else {
-                  setSelectedImage(img);
-                  // Hide details by default on mobile, show on desktop
-                  setShowDetails(window.innerWidth >= 1024);
-                }
-              }}
-            />
-          ))
-        )}
-      </div>
+      {images.length === 0 ? (
+        <div className="text-center text-zinc-500 py-12">
+          No images found in gallery.
+        </div>
+      ) : (
+        <MasonryGallery
+          images={images}
+          getImageUrl={getImageUrl}
+          selectionMode={selectionMode}
+          selectedImages={selectedImages}
+          toggleSelection={toggleSelection}
+          onImageClick={(img) => {
+            if (selectionMode) {
+              toggleSelection(img.filename);
+            } else {
+              setSelectedImage(img);
+              setShowDetails(window.innerWidth >= 1024);
+            }
+          }}
+        />
+      )}
 
 
       {selectedImage && (
@@ -597,6 +591,75 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
   );
 };
 
+// ─── Justified Layout ────────────────────────────────────────────────────────
+
+// ─── Masonry Layout ─────────────────────────────────────────────────────────
+
+const MasonryGallery: React.FC<{
+  images: any[];
+  getImageUrl: (img: any) => string;
+  selectionMode: boolean;
+  selectedImages: Set<string>;
+  toggleSelection: (filename: string) => void;
+  onImageClick: (img: any) => void;
+}> = ({ images, getImageUrl, selectionMode, selectedImages, toggleSelection, onImageClick }) => {
+  const [discoveredRatios, setDiscoveredRatios] = useState<Record<string, number>>({});
+  const [numCols, setNumCols] = useState(window.innerWidth < 640 ? 2 : window.innerWidth < 1024 ? 3 : 4);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setNumCols(window.innerWidth < 640 ? 2 : window.innerWidth < 1024 ? 3 : 4);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    setDiscoveredRatios({});
+  }, [images.length, images[0]?.filename]);
+
+  const handleDimensionsFound = (filename: string, ratio: number) => {
+    setDiscoveredRatios(prev => {
+      if (prev[filename] === ratio) return prev;
+      return { ...prev, [filename]: ratio };
+    });
+  };
+
+  // Distribute images into columns
+  const columns = Array.from({ length: numCols }, () => [] as any[]);
+  images.forEach((img, idx) => {
+    columns[idx % numCols].push(img);
+  });
+
+  const gap = 12;
+
+  return (
+    <div className="flex" style={{ gap }}>      
+      {columns.map((col, cIdx) => (
+        <div key={cIdx} className="flex flex-col flex-1" style={{ gap }}>
+          {col.map((img, iIdx) => {
+            const cachedAR = discoveredRatios[img.filename];
+            const ar = img.width && img.height ? img.width / img.height : (cachedAR || 1);
+            return (
+              <ImageCard
+                key={`${cIdx}-${iIdx}`}
+                img={img}
+                getImageUrl={getImageUrl}
+                selectionMode={selectionMode}
+                isSelected={selectedImages.has(img.filename)}
+                onSelect={() => toggleSelection(img.filename)}
+                onClick={() => onImageClick(img)}
+                onDimensionsFound={handleDimensionsFound}
+                aspectRatio={ar}
+              />
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const ImageCard = ({
   img,
   getImageUrl,
@@ -604,6 +667,8 @@ const ImageCard = ({
   selectionMode,
   isSelected,
   onSelect,
+  onDimensionsFound,
+  aspectRatio,
 }: {
   img: any;
   getImageUrl: (img: any) => string;
@@ -611,19 +676,21 @@ const ImageCard = ({
   selectionMode?: boolean;
   isSelected?: boolean;
   onSelect?: () => void;
+  onDimensionsFound?: (filename: string, ratio: number) => void;
+  aspectRatio: number;
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const url = getImageUrl(img);
 
-  // Reset loaded state if the image URL changes (e.g., during pagination)
   useEffect(() => {
     setIsLoaded(false);
   }, [url]);
 
   return (
     <div
-      className={`aspect-square relative group overflow-hidden rounded-xl bg-zinc-900 border cursor-pointer transition-all ${
-        selectionMode && isSelected ? "border-indigo-500 scale-95" : "border-zinc-800 hover:border-zinc-700"
+      style={{ aspectRatio }}
+      className={`relative group overflow-hidden rounded-xl bg-zinc-900 border cursor-pointer transition-all ${
+        selectionMode && isSelected ? "border-indigo-500 ring-2 ring-indigo-500/50" : "border-zinc-800 hover:border-zinc-700"
       }`}
       onClick={onClick}
     >
@@ -643,7 +710,15 @@ const ImageCard = ({
       <img
         src={url}
         alt={img.prompt || "Generated Image"}
-        onLoad={() => setIsLoaded(true)}
+        onLoad={(e) => {
+          setIsLoaded(true);
+          if ((!img.width || !img.height) && onDimensionsFound) {
+            const ratio = e.currentTarget.naturalWidth / e.currentTarget.naturalHeight;
+            if (ratio && !isNaN(ratio)) {
+              onDimensionsFound(img.filename, ratio);
+            }
+          }
+        }}
         className={`object-cover w-full h-full transition-all duration-700 ease-out ${
           isLoaded
             ? "opacity-100 blur-0 group-hover:scale-105"
