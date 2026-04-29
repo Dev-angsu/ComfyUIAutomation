@@ -11,6 +11,8 @@ import { LoginPage } from "./components/LoginPage";
 import { RegisterPage } from "./components/RegisterPage";
 import { AccountPage } from "./components/AccountPage";
 import { useSettings } from "./lib/settings-context";
+import { ConfirmProvider } from "./lib/confirm-context";
+
 
 function MainInterface() {
   const [activeTab, setActiveTab] = useState<
@@ -291,14 +293,17 @@ function AuthWrapper() {
   return <MainInterface />;
 }
 
+
 export default function App() {
   return (
     <AuthProvider>
-      <ToastProvider>
-        <SettingsProvider>
-          <AuthWrapper />
-        </SettingsProvider>
-      </ToastProvider>
+      <ConfirmProvider>
+        <ToastProvider>
+          <SettingsProvider>
+            <AuthWrapper />
+          </SettingsProvider>
+        </ToastProvider>
+      </ConfirmProvider>
     </AuthProvider>
   );
 }

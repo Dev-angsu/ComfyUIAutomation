@@ -3,6 +3,8 @@ import { useLocalStorage } from "../lib/useLocalStorage";
 import { useSettings } from "../lib/settings-context";
 import { apiClient } from "../lib/api-client";
 import { useToast } from "../lib/toast-context";
+import { useConfirm } from "../lib/confirm-context";
+
 
 interface Message {
   role: "system" | "user" | "assistant";
@@ -11,6 +13,8 @@ interface Message {
 
 export function ChatApp() {
   const { addToast } = useToast();
+  const { confirm } = useConfirm();
+
   const [messages, setMessages] = useLocalStorage<Message[]>("dnd_chat_history", []);
   const [apiUrl, setApiUrl] = useLocalStorage<string>("dnd_lmstudio_url", "http://localhost:1234/v1/chat/completions");
   const [modelId, setModelId] = useLocalStorage<string>("dnd_lmstudio_model", "local-model");
@@ -32,8 +36,15 @@ export function ChatApp() {
     scrollToBottom();
   }, [messages]);
 
-  const handleClearHistory = () => {
-    if (confirm("Are you sure you want to clear the chat history?")) {
+  const handleClearHistory = async () => {
+    const confirmed = await confirm({
+      title: "Clear Chat History",
+      message: "Are you sure you want to clear the entire chat history? This action cannot be undone.",
+      confirmText: "Clear History",
+      variant: "danger"
+    });
+    
+    if (confirmed) {
       setMessages([]);
     }
   };

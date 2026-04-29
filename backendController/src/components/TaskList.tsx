@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { apiClient } from "../lib/api-client";
 import { useToast } from "../lib/toast-context";
+import { useConfirm } from "../lib/confirm-context";
+
 
 export const TaskList: React.FC = () => {
   const { addToast } = useToast();
+  const { confirm } = useConfirm();
+
   const [tasks, setTasks] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
@@ -43,7 +47,13 @@ export const TaskList: React.FC = () => {
 
   const handleDeleteTask = async (e: React.MouseEvent, taskId: string) => {
     e.stopPropagation(); // Don't open the modal
-    if (!window.confirm("Delete this task from history?")) return;
+    const confirmed = await confirm({
+      title: "Delete Task",
+      message: "Are you sure you want to delete this task from history? This action cannot be undone.",
+      confirmText: "Delete",
+      variant: "danger"
+    });
+    if (!confirmed) return;
     
     try {
       await apiClient.deleteTask(taskId);
@@ -54,7 +64,13 @@ export const TaskList: React.FC = () => {
   };
 
   const handleClearAll = async () => {
-    if (!window.confirm("Are you sure you want to clear ALL task history?")) return;
+    const confirmed = await confirm({
+      title: "Clear All History",
+      message: "Are you sure you want to clear ALL task history? This will permanently delete all records.",
+      confirmText: "Clear All",
+      variant: "danger"
+    });
+    if (!confirmed) return;
     
     try {
       await apiClient.deleteAllTasks();
