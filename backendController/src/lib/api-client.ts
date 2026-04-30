@@ -43,6 +43,7 @@ export interface GenerationRequest {
   positive_prompt: string;
   negative_prompt?: string;
   params?: GenerationParams;
+  job_type?: string;
 }
 
 export const apiClient = {

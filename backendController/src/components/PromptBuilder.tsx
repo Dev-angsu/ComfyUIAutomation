@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { apiClient, BuilderConfig, PromptCollection } from "../lib/api-client";
 import { useSettings } from "../lib/settings-context";
 import { useToast } from "../lib/toast-context";
+import { useLocalStorage } from "../lib/useLocalStorage";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const RANDOM_VALUE = "__random__";
@@ -166,14 +167,6 @@ const BuilderDropdown: React.FC<DropdownProps> = ({ field, options, value, onCha
             <option key={opt} value={opt}>{opt}</option>
           ))}
         </select>
-        <button
-          type="button"
-          className="builder-reroll-btn"
-          title="Re-roll this field"
-          onClick={() => onChange(field, RANDOM_VALUE)}
-        >
-          🎲
-        </button>
       </div>
     </div>
   );
@@ -232,10 +225,21 @@ export const PromptBuilder: React.FC = () => {
 
   const [config, setConfig] = useState<BuilderConfig>({ character: {}, outfit: {}, background: {} });
   const [configLoading, setConfigLoading] = useState(true);
-  const [selections, setSelections] = useState<Record<string, string>>({});
+  
+  // Builder State (Persisted)
+  const [selections, setSelections] = useLocalStorage<Record<string, string>>("builder_selections", {});
+  const [batchCount, setBatchCount] = useLocalStorage<number>("builder_batch_count", 1);
+  const [randomizeBatch, setRandomizeBatch] = useLocalStorage<boolean>("builder_randomize_batch", true);
+
+  // Randomization Settings (Shared with BatchUploader)
+  const [randomizeSize, setRandomizeSize] = useLocalStorage("batch_randomize_size", false);
+  const [minRatio, setMinRatio] = useLocalStorage("batch_min_ratio", 0.5);
+  const [maxRatio, setMaxRatio] = useLocalStorage("batch_max_ratio", 2.0);
+  const [minRes, setMinRes] = useLocalStorage("batch_min_res", 512);
+  const [maxRes, setMaxRes] = useLocalStorage("batch_max_res", 1024);
+
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [finalPrompt, setFinalPrompt] = useState("");
-  const [batchCount, setBatchCount] = useState(1);
-  const [randomizeBatch, setRandomizeBatch] = useState(true);
   const [loading, setLoading] = useState(false);
   const [lastTask, setLastTask] = useState<string | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -256,7 +260,7 @@ export const PromptBuilder: React.FC = () => {
     if (!config.character.gender) return;
     const prompt = buildPrompt(selections, config);
     setFinalPrompt(prompt);
-  }, [selections, config]);
+  }, [selections, config, refreshTrigger]);
 
   useEffect(() => { refreshPrompt(); }, [refreshPrompt]);
 
@@ -266,23 +270,18 @@ export const PromptBuilder: React.FC = () => {
 
   const handleReset = () => {
     setSelections({});
+    setBatchCount(1);
+    setRandomizeBatch(true);
+    setRandomizeSize(false);
+    setMinRatio(0.5);
+    setMaxRatio(2.0);
+    setMinRes(512);
+    setMaxRes(1024);
   };
 
   const handleRandomise = () => {
-    // Force all-random re-resolve by clearing fixed only for random fields
-    const newSelections: Record<string, string> = {};
-    for (const field of [...CHARACTER_FIELDS, ...OUTFIT_FIELDS, ...BACKGROUND_FIELDS]) {
-      const current = selections[field];
-      if (!current || current === RANDOM_VALUE) {
-        newSelections[field] = RANDOM_VALUE;
-      } else {
-        newSelections[field] = current;
-      }
-    }
-    setSelections(newSelections);
-    // Build prompt right now with fresh random picks
-    const prompt = buildPrompt(newSelections, config);
-    setFinalPrompt(prompt);
+    // Force a re-resolve of all random fields without changing selections
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const buildOnePrompt = () => buildPrompt(selections, config);
@@ -293,12 +292,31 @@ export const PromptBuilder: React.FC = () => {
       const promises: Promise<any>[] = [];
       for (let i = 0; i < batchCount; i++) {
         const prompt = randomizeBatch || i === 0 ? buildOnePrompt() : finalPrompt;
+        
+        let width = settings.width;
+        let height = settings.height;
+
+        if (randomizeSize) {
+          const ratio = Math.random() * (maxRatio - minRatio) + minRatio;
+          const res = Math.floor(Math.random() * (maxRes - minRes + 1)) + minRes;
+          if (ratio >= 1) {
+            width = res;
+            height = res / ratio;
+          } else {
+            height = res;
+            width = res * ratio;
+          }
+          width = Math.round(width / 8) * 8;
+          height = Math.round(height / 8) * 8;
+        }
+
         promises.push(apiClient.generateSingle({
           positive_prompt: prompt,
           negative_prompt: settings.negativePrompt,
+          job_type: "BUILDER",
           params: {
-            width: settings.width,
-            height: settings.height,
+            width,
+            height,
             steps: settings.steps,
             workflow: settings.workflow,
           },
@@ -399,6 +417,78 @@ export const PromptBuilder: React.FC = () => {
         />
         {lastTask && (
           <span className="builder-dispatched">✓ Dispatched: {lastTask.substring(0, 8)}…</span>
+        )}
+      </div>
+
+      {/* Randomize Size Section */}
+      <div className="bg-black/20 border border-zinc-800/50 rounded-xl p-4 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${randomizeSize ? 'bg-indigo-500/20 text-indigo-400' : 'bg-zinc-800 text-zinc-500'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round">
+                <path d="M21 16V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"></path>
+                <path d="M7 12h10"></path>
+                <path d="M12 7v10"></path>
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-200">Randomize Aspect Ratio & Resolution</h3>
+              <p className="text-xs text-zinc-500">Each image will get unique dimensions</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setRandomizeSize(!randomizeSize)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${randomizeSize ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${randomizeSize ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+        </div>
+
+        {randomizeSize && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="space-y-3">
+              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Aspect Ratio Range</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.1"
+                  value={minRatio}
+                  onChange={(e) => setMinRatio(Number(e.target.value))}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500/50"
+                  placeholder="Min"
+                />
+                <span className="text-zinc-600">to</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={maxRatio}
+                  onChange={(e) => setMaxRatio(Number(e.target.value))}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500/50"
+                  placeholder="Max"
+                />
+              </div>
+            </div>
+            <div className="space-y-3">
+              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Resolution (Long Edge)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={minRes}
+                  onChange={(e) => setMinRes(Number(e.target.value))}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500/50"
+                  placeholder="Min"
+                />
+                <span className="text-zinc-600">to</span>
+                <input
+                  type="number"
+                  value={maxRes}
+                  onChange={(e) => setMaxRes(Number(e.target.value))}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500/50"
+                  placeholder="Max"
+                />
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

@@ -27,6 +27,7 @@ class BatchType(str, Enum):
     MANUAL = "MANUAL"
     CSV = "CSV"
     DYNAMIC = "DYNAMIC"
+    BUILDER = "BUILDER"
 
 
 class BatchStatus(str, Enum):
@@ -66,6 +67,7 @@ class GenerationRequest(BaseModel):
     negative_prompt: Optional[str] = Field(default=None, description="Override negative prompt (uses default if omitted)")
     params: GenerationParams = Field(default_factory=GenerationParams)
     output_prefix: Optional[str] = Field(default="ComfyUI_Auto", description="Filename prefix for saved images")
+    job_type: Optional[BatchType] = Field(default=BatchType.MANUAL, description="Originating mode (MANUAL, BUILDER, etc.)")
 
 
 class JobRow(BaseModel):

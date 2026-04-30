@@ -99,7 +99,7 @@ async def generate_single(req: GenerationRequest, user: User = Depends(get_curre
     neg = req.negative_prompt or build_negative_prompt()
 
     task_data = _build_task_data(
-        job_type=BatchType.MANUAL,
+        job_type=req.job_type or BatchType.MANUAL,
         positive_prompt=req.positive_prompt,
         negative_prompt=neg,
         params=req.params,
