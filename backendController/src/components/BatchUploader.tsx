@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { useLocalStorage } from "../lib/useLocalStorage";
 import { apiClient } from "../lib/api-client";
 import { useSettings } from "../lib/settings-context";
 import { useToast } from "../lib/toast-context";
@@ -9,12 +10,12 @@ export const BatchUploader: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [lastBatch, setLastBatch] = useState<string | null>(null);
   
-  // Randomization Settings
-  const [randomizeSize, setRandomizeSize] = useState(false);
-  const [minRatio, setMinRatio] = useState(0.5);
-  const [maxRatio, setMaxRatio] = useState(2.0);
-  const [minRes, setMinRes] = useState(512);
-  const [maxRes, setMaxRes] = useState(1024);
+  // Randomization Settings (Persisted)
+  const [randomizeSize, setRandomizeSize] = useLocalStorage("batch_randomize_size", false);
+  const [minRatio, setMinRatio] = useLocalStorage("batch_min_ratio", 0.5);
+  const [maxRatio, setMaxRatio] = useLocalStorage("batch_max_ratio", 2.0);
+  const [minRes, setMinRes] = useLocalStorage("batch_min_res", 512);
+  const [maxRes, setMaxRes] = useLocalStorage("batch_max_res", 1024);
 
   const { settings } = useSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
