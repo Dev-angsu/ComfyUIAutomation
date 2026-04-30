@@ -313,6 +313,15 @@ export const apiClient = {
     if (!response.ok) throw new Error("Failed to delete prompt");
     return response.json();
   },
+
+  async getBuilderConfig(): Promise<BuilderConfig> {
+    const response = await fetch(`${API_BASE}/prompts/builder-config`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to fetch builder config");
+    return response.json();
+  },
 };
 
 export interface SavedPrompt {
@@ -335,4 +344,10 @@ export interface PromptCollection {
   user_id: number;
   created_at: string;
   prompts: SavedPrompt[];
+}
+
+export interface BuilderConfig {
+  character: Record<string, string[]>;
+  outfit: Record<string, string[]>;
+  background: Record<string, string[]>;
 }

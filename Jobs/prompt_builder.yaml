@@ -1,0 +1,415 @@
+# ─────────────────────────────────────────────────────────────
+#  Prompt Builder Configuration
+#  Edit this file to control the dropdown options in the Builder.
+#  Restart the backend after making changes.
+#
+#  Special values handled automatically (do NOT include in lists):
+#    🎲 Random  — picks a random value from the list at generation time
+#    –          — omits this field from the final prompt entirely
+# ─────────────────────────────────────────────────────────────
+
+character:
+  gender:
+    - 1girl
+    - 1boy
+    - 2girls
+    - 2boys
+    - 1other
+
+  body:
+    - slim body
+    - athletic build
+    - curvy body
+    - petite body
+    - tall figure
+    - muscular build
+    - slender figure
+
+  chest:
+    - flat chest
+    - small breasts
+    - medium breasts
+    - large breasts
+    - huge breasts
+
+  skin_color:
+    - fair skin
+    - pale skin
+    - tan skin
+    - dark skin
+    - light brown skin
+    - olive skin
+
+  eye_color:
+    - blue eyes
+    - red eyes
+    - green eyes
+    - brown eyes
+    - purple eyes
+    - golden eyes
+    - teal eyes
+    - silver eyes
+    - heterochromia
+
+  hair_color:
+    - black hair
+    - blonde hair
+    - brown hair
+    - silver hair
+    - white hair
+    - red hair
+    - blue hair
+    - pink hair
+    - green hair
+    - purple hair
+    - orange hair
+    - multicolored hair
+    - gradient hair
+
+  hair_length:
+    - very short hair
+    - short hair
+    - medium hair
+    - long hair
+    - very long hair
+    - absurdly long hair
+
+  hair_type:
+    - straight hair
+    - wavy hair
+    - curly hair
+    - twin tails
+    - ponytail
+    - side ponytail
+    - high ponytail
+    - braided hair
+    - bun
+    - pigtails
+
+  hair_style:
+    - messy hair
+    - neat hair
+    - swept back hair
+    - parted in middle
+    - side-parted hair
+    - hair down
+
+  bangs:
+    - blunt bangs
+    - side bangs
+    - swept bangs
+    - parted bangs
+    - no bangs
+
+  misc:
+    - freckles
+    - mole under eye
+    - mole on cheek
+    - scar
+    - glasses
+    - sunglasses
+    - ahoge
+    - animal ears
+    - cat ears
+    - fox ears
+    - tail
+    - wings
+    - horns
+    - halo
+
+  angle:
+    - from front
+    - from side
+    - from behind
+    - looking at viewer
+    - from above
+    - from below
+    - dutch angle
+    - profile view
+    - pov
+    - cowboy shot
+    - upper body
+    - full body
+    - close-up face
+
+  gaze:
+    - looking at viewer
+    - looking away
+    - looking up
+    - looking down
+    - eyes closed
+    - winking
+    - half-closed eyes
+    - wide eyes
+
+  emotion:
+    - smile
+    - happy
+    - sad
+    - angry
+    - surprised
+    - blushing
+    - serious
+    - shy
+    - embarrassed
+    - crying
+    - laughing
+    - smirk
+    - neutral expression
+    - pout
+
+  action:
+    - standing
+    - sitting
+    - lying down
+    - walking
+    - running
+    - jumping
+    - kneeling
+    - leaning against wall
+    - stretching
+    - posing
+    - arms crossed
+    - hands on hips
+    - reaching out
+    - waving
+
+# ─────────────────────────────────────────────────────────────
+outfit:
+  fabric:
+    - cotton
+    - silk
+    - lace
+    - leather
+    - denim
+    - velvet
+    - chiffon
+    - satin
+    - sheer fabric
+    - knit
+
+  outfit_set:
+    - casual outfit
+    - formal outfit
+    - school uniform
+    - sportswear
+    - swimwear
+    - sleepwear
+    - traditional clothing
+    - fantasy outfit
+    - sci-fi outfit
+    - military uniform
+    - maid outfit
+    - nurse outfit
+    - idol outfit
+
+  outfit:
+    - dress
+    - mini dress
+    - sundress
+    - gown
+    - skirt
+    - mini skirt
+    - pleated skirt
+    - pants
+    - shorts
+    - jeans
+    - leggings
+    - coat
+    - jacket
+    - hoodie
+    - sweater
+    - blouse
+    - shirt
+    - tank top
+    - kimono
+    - yukata
+    - qipao
+    - saree
+    - bikini
+    - one-piece swimsuit
+
+  outwear:
+    - trench coat
+    - parka
+    - bomber jacket
+    - blazer
+    - cardigan
+    - cape
+    - cloak
+    - fur coat
+    - leather jacket
+
+  torso:
+    - bare midriff
+    - crop top
+    - off-shoulder top
+    - deep neckline
+    - turtleneck
+    - strapless top
+    - halter top
+    - backless outfit
+    - corset
+
+  sleeves:
+    - sleeveless
+    - short sleeves
+    - long sleeves
+    - wide sleeves
+    - bell sleeves
+    - puffed sleeves
+    - torn sleeves
+
+  waist:
+    - belt
+    - corset belt
+    - sash
+    - apron
+    - bare waist
+    - waist ribbon
+
+  legs:
+    - bare legs
+    - stockings
+    - thighhighs
+    - pantyhose
+    - fishnets
+    - knee socks
+    - ankle socks
+
+  foot:
+    - barefoot
+    - sneakers
+    - high heels
+    - boots
+    - knee-high boots
+    - sandals
+    - loafers
+    - pumps
+    - platform shoes
+
+  head:
+    - hat
+    - baseball cap
+    - beret
+    - crown
+    - headband
+    - hair ribbon
+    - hood
+    - veil
+    - tiara
+    - witch hat
+    - top hat
+
+  hands:
+    - gloves
+    - fingerless gloves
+    - mittens
+    - bracelet
+    - rings
+    - wristband
+
+  acc1:
+    - necklace
+    - choker
+    - pendant
+    - locket
+    - collar
+
+  acc2:
+    - earrings
+    - ear studs
+    - dangling earrings
+    - ear cuffs
+
+  acc3:
+    - bag
+    - backpack
+    - purse
+    - satchel
+    - briefcase
+
+# ─────────────────────────────────────────────────────────────
+background:
+  custom_bg: []
+
+  angle:
+    - eye level
+    - low angle
+    - high angle
+    - bird's eye view
+    - worm's eye view
+    - overhead shot
+    - wide shot
+    - medium shot
+
+  color_scheme:
+    - warm colors
+    - cool colors
+    - monochrome
+    - pastel colors
+    - vibrant colors
+    - dark tones
+    - sepia tone
+    - neon colors
+    - earth tones
+
+  exterior_bg:
+    - city street
+    - park
+    - beach
+    - forest
+    - mountain
+    - rooftop
+    - garden
+    - countryside
+    - alley
+    - pier
+    - sakura grove
+    - snowy field
+    - desert
+    - cliffside
+    - ancient ruins
+    - futuristic city
+
+  interior_bg:
+    - bedroom
+    - classroom
+    - library
+    - kitchen
+    - office
+    - cafe
+    - restaurant
+    - hospital
+    - gym
+    - studio
+    - bathroom
+    - living room
+    - throne room
+    - laboratory
+    - dungeon
+    - space station
+
+  time:
+    - daytime
+    - nighttime
+    - sunrise
+    - sunset
+    - golden hour
+    - dusk
+    - noon
+    - midnight
+    - dawn
+    - twilight
+
+  weather:
+    - clear sky
+    - cloudy sky
+    - rainy
+    - snowy
+    - foggy
+    - stormy
+    - windy
+    - sunny
+    - overcast
+    - thunder
