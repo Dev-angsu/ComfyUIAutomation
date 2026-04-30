@@ -6,6 +6,7 @@ import { SettingsProvider } from "./lib/settings-context";
 import { ToastProvider } from "./lib/toast-context";
 import { ChatApp } from "./components/ChatApp";
 import { StudioWorkspace } from "./components/StudioWorkspace";
+import { Collections } from "./components/Collections";
 import { AuthProvider, useAuth } from "./lib/AuthContext";
 import { LoginPage } from "./components/LoginPage";
 import { RegisterPage } from "./components/RegisterPage";
@@ -17,7 +18,7 @@ import { ConfirmProvider } from "./lib/confirm-context";
 
 function MainInterface() {
   const [activeTab, setActiveTab] = useState<
-    "studio" | "tasks" | "gallery" | "chat" | "profile" | "prompts"
+    "studio" | "tasks" | "gallery" | "chat" | "profile" | "prompts" | "collections"
   >("studio");
 
   const [isBackendReady, setIsBackendReady] = useState(false);
@@ -171,16 +172,31 @@ function MainInterface() {
                 </button>
               )}
 
-              <button
-                onClick={() => { setActiveTab("prompts"); setIsSidebarOpen(false); }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === "prompts"
-                  ? "bg-indigo-500/10 text-indigo-400"
-                  : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
-                  }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-                Prompts Zone
-              </button>
+              {settings.navVisibility.prompts && (
+                <button
+                  onClick={() => { setActiveTab("prompts"); setIsSidebarOpen(false); }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === "prompts"
+                    ? "bg-indigo-500/10 text-indigo-400"
+                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                    }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                  Prompts Zone
+                </button>
+              )}
+
+              {settings.navVisibility.collections && (
+                <button
+                  onClick={() => { setActiveTab("collections"); setIsSidebarOpen(false); }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === "collections"
+                    ? "bg-indigo-500/10 text-indigo-400"
+                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                    }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                  Collections
+                </button>
+              )}
             </nav>
 
             <div className="p-4 border-t border-zinc-800">
@@ -228,7 +244,9 @@ function MainInterface() {
                           ? "Account"
                           : activeTab === "prompts"
                             ? "Prompts Zone"
-                            : "Tasks"}
+                            : activeTab === "collections"
+                              ? "Collections"
+                              : "Tasks"}
                 </h2>
               </div>
               <div className="flex items-center gap-3">
@@ -269,6 +287,10 @@ function MainInterface() {
 
               <div className={`max-w-7xl mx-auto flex-col gap-6 ${activeTab === "prompts" ? "flex" : "hidden"}`}>
                 <PromptsZone onTakePrompt={() => setActiveTab("studio")} />
+              </div>
+
+              <div className={`max-w-7xl mx-auto flex-col gap-6 ${activeTab === "collections" ? "flex" : "hidden"}`}>
+                <Collections onNavigate={(tab: any) => setActiveTab(tab)} />
               </div>
             </main>
       </div>

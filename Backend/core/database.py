@@ -26,6 +26,8 @@ class User(Base):
     batches = relationship("Batch", back_populates="owner")
     prompt_collections = relationship("PromptCollection", back_populates="owner")
     saved_prompts = relationship("SavedPrompt", back_populates="owner")
+    image_collections = relationship("ImageCollection", back_populates="owner")
+    saved_images = relationship("SavedImage", back_populates="owner")
 
 class Batch(Base):
     __tablename__ = "batches"
@@ -100,6 +102,39 @@ class SavedPrompt(Base):
 
     owner = relationship("User", back_populates="saved_prompts")
     collection = relationship("PromptCollection", back_populates="prompts")
+
+class ImageCollection(Base):
+    __tablename__ = "image_collections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    owner = relationship("User", back_populates="image_collections")
+    images = relationship("SavedImage", back_populates="collection", cascade="all, delete-orphan")
+
+class SavedImage(Base):
+    __tablename__ = "saved_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    collection_id = Column(Integer, ForeignKey("image_collections.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    filename = Column(String)
+    subfolder = Column(String, nullable=True)
+    type = Column(String, default="collection")
+    positive_prompt = Column(Text, nullable=True)
+    negative_prompt = Column(Text, nullable=True)
+    width = Column(Integer, nullable=True)
+    height = Column(Integer, nullable=True)
+    steps = Column(Integer, nullable=True)
+    seed = Column(Integer, nullable=True)
+    workflow = Column(String, nullable=True)
+    is_liked = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    owner = relationship("User", back_populates="saved_images")
+    collection = relationship("ImageCollection", back_populates="images")
 
 def init_db():
     Base.metadata.create_all(bind=engine)

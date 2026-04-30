@@ -60,4 +60,5 @@ yarn-error.log*
 # ===========DB==============
 Backend/*.db
 
-# =========================
+# =============Images============
+Backend/collections_data/*

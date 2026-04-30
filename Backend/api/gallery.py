@@ -15,6 +15,7 @@ The proxy endpoint (/api/images) stays unchanged in both phases.
 """
 
 import logging
+import os
 from collections import OrderedDict
 from typing import Optional
 
@@ -357,19 +358,35 @@ async def proxy_image(
     if cached is not None:
         logger.debug(f"Image cache HIT for '{filename}'")
     else:
-        # ── Cache miss — fetch from ComfyUI ───────────────────────────────────
-        logger.debug(f"Image cache MISS for '{filename}' — fetching from ComfyUI")
-        try:
-            cached = await comfy_adapter.get_image_bytes(filename, subfolder, type)
-            _cache_put(cache_key, cached)
-        except Exception as exc:
-            # If ComfyUI says the image is gone, remove any stale entry
-            _cache_delete(cache_key)
-            logger.error(f"Image proxy error for '{filename}': {exc}")
-            raise HTTPException(
-                status_code=502,
-                detail=f"Could not fetch '{filename}' from ComfyUI at {settings.comfy_server}",
-            )
+        # ── Cache miss — fetch from Local Storage or ComfyUI ──────────────────
+        if type == "collection":
+            # Read from Backend/collections_data/{user_id}/{filename}
+            user_dir = os.path.join(os.path.dirname(__file__), "..", "collections_data", str(user.id))
+            file_path = os.path.join(user_dir, filename)
+            if os.path.exists(file_path):
+                try:
+                    with open(file_path, "rb") as f:
+                        cached = f.read()
+                    _cache_put(cache_key, cached)
+                except Exception as e:
+                    logger.error(f"Failed to read local collection image {file_path}: {e}")
+                    raise HTTPException(status_code=500, detail="Failed to read saved image")
+            else:
+                logger.warning(f"Collection image {file_path} not found on disk")
+                raise HTTPException(status_code=404, detail="Saved image not found")
+        else:
+            logger.debug(f"Image cache MISS for '{filename}' — fetching from ComfyUI")
+            try:
+                cached = await comfy_adapter.get_image_bytes(filename, subfolder, type)
+                _cache_put(cache_key, cached)
+            except Exception as exc:
+                # If ComfyUI says the image is gone, remove any stale entry
+                _cache_delete(cache_key)
+                logger.error(f"Image proxy error for '{filename}': {exc}")
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Could not fetch '{filename}' from ComfyUI at {settings.comfy_server}",
+                )
 
     image_bytes = cached
 

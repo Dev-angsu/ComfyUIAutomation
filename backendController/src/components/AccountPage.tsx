@@ -65,6 +65,8 @@ export function AccountPage() {
               { id: "tasks", label: "Recent Tasks", description: "Monitor and manage your generation queue" },
               { id: "gallery", label: "Image Gallery", description: "Browse and download your generated content" },
               { id: "chat", label: "Stories (Chat)", description: "Interactive AI storytelling and chat" },
+              { id: "prompts", label: "Prompts Zone", description: "Manage and reuse your saved prompts" },
+              { id: "collections", label: "Image Collections", description: "Organize and save your favorite creations" },
             ].map((item) => (
               <div key={item.id} className="p-5 flex items-center justify-between hover:bg-zinc-800/30 transition-colors">
                 <div className="space-y-0.5">

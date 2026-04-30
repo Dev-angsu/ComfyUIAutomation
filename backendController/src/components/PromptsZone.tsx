@@ -308,14 +308,9 @@ const PromptCard: React.FC<{
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-[11px] text-zinc-400 line-clamp-3 font-mono leading-relaxed bg-black/30 p-3 rounded-xl border border-zinc-800/50">
+        <div className="text-[11px] text-zinc-400 font-mono leading-relaxed bg-black/30 p-3 rounded-xl border border-zinc-800/50 h-24 overflow-y-auto sleek-scrollbar">
           {prompt.positive_prompt}
-        </p>
-        {prompt.negative_prompt && (
-          <p className="text-[9px] text-zinc-600 line-clamp-1 italic font-mono px-3">
-            {prompt.negative_prompt}
-          </p>
-        )}
+        </div>
       </div>
 
       <div className="flex items-center justify-between mt-1">

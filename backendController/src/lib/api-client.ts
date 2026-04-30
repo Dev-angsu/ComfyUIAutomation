@@ -323,6 +323,64 @@ export const apiClient = {
     if (!response.ok) throw new Error("Failed to fetch builder config");
     return response.json();
   },
+
+  // ── Image Collections ─────────────────────────────────────────────────────
+  async getImageCollections(): Promise<ImageCollection[]> {
+    const response = await fetch(`${API_BASE}/collections/`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to fetch image collections");
+    return response.json();
+  },
+
+  async createImageCollection(name: string): Promise<ImageCollection> {
+    const response = await fetch(`${API_BASE}/collections/`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ name }),
+    });
+    if (!response.ok) throw new Error("Failed to create collection");
+    return response.json();
+  },
+
+  async deleteImageCollection(id: number) {
+    const response = await fetch(`${API_BASE}/collections/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to delete collection");
+    return response.json();
+  },
+
+  async saveImageToCollection(data: Partial<SavedImage>): Promise<SavedImage> {
+    const response = await fetch(`${API_BASE}/collections/save`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error("Failed to save image to collection");
+    return response.json();
+  },
+
+  async updateSavedImage(id: number, updates: Partial<SavedImage>): Promise<SavedImage> {
+    const response = await fetch(`${API_BASE}/collections/images/${id}`, {
+      method: "PATCH",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(updates),
+    });
+    if (!response.ok) throw new Error("Failed to update saved image");
+    return response.json();
+  },
+
+  async deleteSavedImage(id: number) {
+    const response = await fetch(`${API_BASE}/collections/images/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to remove image from collection");
+    return response.json();
+  },
 };
 
 export interface SavedPrompt {
@@ -351,4 +409,31 @@ export interface BuilderConfig {
   character: Record<string, string[]>;
   outfit: Record<string, string[]>;
   background: Record<string, string[]>;
+}
+
+export interface SavedImage {
+  id: number;
+  collection_id?: number;
+  user_id: number;
+  filename: string;
+  subfolder?: string;
+  type: string;
+  positive_prompt?: string;
+  negative_prompt?: string;
+  width?: number;
+  height?: number;
+  steps?: number;
+  seed?: number;
+  workflow?: string;
+  is_liked: boolean;
+  created_at: string;
+  url: string;
+}
+
+export interface ImageCollection {
+  id: number;
+  name: string;
+  user_id: number;
+  created_at: string;
+  images: SavedImage[];
 }

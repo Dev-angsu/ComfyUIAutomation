@@ -341,3 +341,22 @@
   gap: 0.75rem;
 }
 .builder-modal-actions .builder-btn { flex: 1; justify-content: center; padding: 0.75rem 1rem; }
+
+/* Sleek scrollbar for prompt cards */
+.sleek-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.sleek-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sleek-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+.sleek-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.sleek-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}

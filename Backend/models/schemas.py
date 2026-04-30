@@ -270,3 +270,50 @@ class PromptCollectionResponse(PromptCollectionBase):
 
     class Config:
         from_attributes = True
+
+# ── Image Collections DTOs ───────────────────────────────────────────────────
+
+class SavedImageBase(BaseModel):
+    collection_id: Optional[int] = None
+    filename: str
+    subfolder: Optional[str] = None
+    type: str = "collection"
+    positive_prompt: Optional[str] = None
+    negative_prompt: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    steps: Optional[int] = None
+    seed: Optional[int] = None
+    workflow: Optional[str] = None
+    is_liked: bool = False
+
+class SavedImageCreate(SavedImageBase):
+    pass
+
+class SavedImageUpdate(BaseModel):
+    is_liked: Optional[bool] = None
+    collection_id: Optional[int] = None
+
+class SavedImageResponse(SavedImageBase):
+    id: int
+    user_id: int
+    created_at: datetime
+    url: str = ""
+
+    class Config:
+        from_attributes = True
+
+class ImageCollectionBase(BaseModel):
+    name: str
+
+class ImageCollectionCreate(ImageCollectionBase):
+    pass
+
+class ImageCollectionResponse(ImageCollectionBase):
+    id: int
+    user_id: int
+    created_at: datetime
+    images: list[SavedImageResponse] = []
+
+    class Config:
+        from_attributes = True

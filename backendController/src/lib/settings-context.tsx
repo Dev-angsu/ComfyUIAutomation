@@ -14,6 +14,8 @@ interface Settings {
     tasks: boolean;
     gallery: boolean;
     chat: boolean;
+    prompts: boolean;
+    collections: boolean;
   };
 }
 
@@ -39,6 +41,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       tasks: true,
       gallery: true,
       chat: true,
+      prompts: true,
+      collections: true,
     },
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -78,6 +82,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               tasks: true,
               gallery: true,
               chat: true,
+              prompts: true,
+              collections: true,
             }
           };
           localStorage.setItem("gen_settings", JSON.stringify(initialSettings));
