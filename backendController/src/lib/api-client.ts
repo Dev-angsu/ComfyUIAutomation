@@ -363,6 +363,16 @@ export const apiClient = {
     return response.json();
   },
 
+  async saveImagesToCollectionBulk(data: Partial<SavedImage>[]): Promise<SavedImage[]> {
+    const response = await fetch(`${API_BASE}/collections/save-bulk`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error("Failed to save images to collection");
+    return response.json();
+  },
+
   async updateSavedImage(id: number, updates: Partial<SavedImage>): Promise<SavedImage> {
     const response = await fetch(`${API_BASE}/collections/images/${id}`, {
       method: "PATCH",
@@ -379,6 +389,16 @@ export const apiClient = {
       headers: getAuthHeaders(),
     });
     if (!response.ok) throw new Error("Failed to remove image from collection");
+    return response.json();
+  },
+
+  async deleteSavedImagesBulk(imageIds: number[]) {
+    const response = await fetch(`${API_BASE}/collections/images/delete-bulk`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(imageIds),
+    });
+    if (!response.ok) throw new Error("Failed to remove images from collection");
     return response.json();
   },
 };

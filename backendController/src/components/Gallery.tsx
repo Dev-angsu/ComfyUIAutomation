@@ -56,7 +56,8 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
   const [saveCollectionId, setSaveCollectionId] = useState<number | undefined>(undefined);
   const [availableCollections, setAvailableCollections] = useState<PromptCollection[]>([]);
   const [showSaveToCollectionModal, setShowSaveToCollectionModal] = useState(false);
-  const [imageToSave, setImageToSave] = useState<any | null>(null);
+  const [imagesToSave, setImagesToSave] = useState<any[]>([]);
+  const [savingToCollection, setSavingToCollection] = useState(false);
   const [availableImageCollections, setAvailableImageCollections] = useState<any[]>([]);
   const [selectedImageCollectionId, setSelectedImageCollectionId] = useState<number | "">("");
   const [newCollectionName, setNewCollectionName] = useState("");
@@ -217,8 +218,9 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
     }
   };
 
-  const handleOpenSaveToCollection = async (img: any) => {
-    setImageToSave(img);
+  const handleOpenSaveToCollection = async (imgs: any | any[]) => {
+    const imagesArray = Array.isArray(imgs) ? imgs : [imgs];
+    setImagesToSave(imagesArray);
     setShowSaveToCollectionModal(true);
     try {
       const cols = await apiClient.getImageCollections();
@@ -229,9 +231,10 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
   };
 
   const handleSaveToCollection = async () => {
-    if (!imageToSave) return;
+    if (imagesToSave.length === 0) return;
     
     let collectionId = selectedImageCollectionId;
+    setSavingToCollection(true);
     
     try {
       if (newCollectionName) {
@@ -242,35 +245,37 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
       
       if (collectionId === "") {
         addToast("Please select or create a collection.", "error");
+        setSavingToCollection(false);
         return;
       }
 
-      // Duplicate check
-      const targetCol = availableImageCollections.find(c => c.id === Number(collectionId));
-      if (targetCol && targetCol.images.some((img: any) => img.filename === imageToSave.filename)) {
-        addToast("Image already exists in this collection.", "error");
-        return;
-      }
-
-      await apiClient.saveImageToCollection({
-        filename: imageToSave.filename,
-        subfolder: imageToSave.subfolder,
-        type: imageToSave.type,
-        positive_prompt: imageToSave.positive_prompt,
-        negative_prompt: imageToSave.negative_prompt,
-        width: imageToSave.width,
-        height: imageToSave.height,
-        steps: imageToSave.steps,
-        seed: imageToSave.seed,
-        workflow: imageToSave.workflow,
+      const payload = imagesToSave.map(img => ({
+        filename: img.filename,
+        subfolder: img.subfolder,
+        type: img.type,
+        positive_prompt: img.positive_prompt,
+        negative_prompt: img.negative_prompt,
+        width: img.width,
+        height: img.height,
+        steps: img.steps,
+        seed: img.seed,
+        workflow: img.workflow,
         collection_id: Number(collectionId)
-      });
+      }));
+
+      await apiClient.saveImagesToCollectionBulk(payload);
       
-      addToast("✨ Image saved to collection!", "success");
+      addToast(`✨ ${imagesToSave.length > 1 ? `${imagesToSave.length} images` : "Image"} saved to collection!`, "success");
       setShowSaveToCollectionModal(false);
-      setImageToSave(null);
+      setImagesToSave([]);
+      if (selectionMode) {
+        setSelectionMode(false);
+        setSelectedImages(new Set());
+      }
     } catch (err) {
-      addToast("Failed to save image to collection.", "error");
+      addToast("Failed to save to collection.", "error");
+    } finally {
+      setSavingToCollection(false);
     }
   };
 
@@ -399,15 +404,29 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
         {/* Floating Download Buttons on Mobile / Toolbar on Desktop */}
         <div className="fixed bottom-6 right-6 lg:relative lg:bottom-auto lg:right-auto z-[60] flex flex-col-reverse lg:flex-row items-end lg:items-center gap-4 lg:gap-2 pointer-events-none">
           {selectionMode && selectedImages.size > 0 && (
-             <button
-               onClick={() => handleBulkDownload(images.filter(img => selectedImages.has(img.filename)))}
-               disabled={downloading}
-               className="w-14 h-14 lg:w-auto lg:h-auto lg:flex-1 sm:lg:flex-none text-xs font-bold uppercase tracking-wider lg:px-5 lg:py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full lg:rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-2xl lg:shadow-lg shadow-indigo-500/40 lg:shadow-indigo-500/20 active:scale-95 pointer-events-auto backdrop-blur-xl border border-white/10 lg:border-none"
-               title="Download selected images"
-             >
-               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" className="lg:w-[14px] lg:h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-               <span className="hidden lg:inline">{downloading ? "Zipping..." : "Download Selected"}</span>
-             </button>
+             <div className="flex flex-col-reverse lg:flex-row items-end lg:items-center gap-4 lg:gap-2 pointer-events-none">
+               <button
+                 onClick={() => handleOpenSaveToCollection(images.filter(img => selectedImages.has(img.filename)))}
+                 className="w-14 h-14 lg:w-auto lg:h-auto lg:flex-1 sm:lg:flex-none text-xs font-bold uppercase tracking-wider lg:px-5 lg:py-3 bg-zinc-800/90 lg:bg-zinc-800/80 border border-zinc-700/50 lg:border-zinc-700 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-full lg:rounded-xl transition-all flex items-center justify-center gap-2 shadow-2xl lg:shadow-none active:scale-95 pointer-events-auto backdrop-blur-xl"
+                 title="Add selected to collection"
+               >
+                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" className="lg:w-[14px] lg:h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round">
+                   <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                   <line x1="12" y1="11" x2="12" y2="17"></line>
+                   <line x1="9" y1="14" x2="15" y2="14"></line>
+                 </svg>
+                 <span className="hidden lg:inline">Add to Collection</span>
+               </button>
+               <button
+                 onClick={() => handleBulkDownload(images.filter(img => selectedImages.has(img.filename)))}
+                 disabled={downloading}
+                 className="w-14 h-14 lg:w-auto lg:h-auto lg:flex-1 sm:lg:flex-none text-xs font-bold uppercase tracking-wider lg:px-5 lg:py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full lg:rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-2xl lg:shadow-lg shadow-indigo-500/40 lg:shadow-indigo-500/20 active:scale-95 pointer-events-auto backdrop-blur-xl border border-white/10 lg:border-none"
+                 title="Download selected images"
+               >
+                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" className="lg:w-[14px] lg:h-[14px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                 <span className="hidden lg:inline">{downloading ? "Zipping..." : "Download Selected"}</span>
+               </button>
+             </div>
           )}
           {!selectionMode && images.length > 0 && (
              <div className="flex flex-col-reverse lg:flex-row items-end lg:items-center gap-4 lg:gap-2 pointer-events-none">
@@ -622,7 +641,10 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
       {showSaveToCollectionModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-300">
-            <h2 className="text-2xl font-bold text-white mb-6">Save to Collections</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">Save to Collections</h2>
+            <p className="text-zinc-500 text-xs mb-6">
+              {imagesToSave.length > 1 ? `Saving ${imagesToSave.length} images to your collection.` : "Saving image to your collection."}
+            </p>
             
             <div className="space-y-6 mb-10">
               <div className="space-y-2">
@@ -672,10 +694,16 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
               </button>
               <button
                 onClick={handleSaveToCollection}
-                disabled={!selectedImageCollectionId && !newCollectionName}
-                className="flex-1 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-2xl font-bold transition-all shadow-xl shadow-indigo-500/20 active:scale-95"
+                disabled={(!selectedImageCollectionId && !newCollectionName) || savingToCollection}
+                className="flex-1 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white rounded-2xl font-bold transition-all shadow-xl shadow-indigo-500/20 active:scale-95 flex items-center justify-center gap-2"
               >
-                Save to Collection
+                {savingToCollection && (
+                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
+                {savingToCollection ? "Saving..." : "Save to Collection"}
               </button>
             </div>
           </div>

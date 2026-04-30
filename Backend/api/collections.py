@@ -163,6 +163,67 @@ async def save_image_to_collection(
     
     return _make_saved_image_response(new_img)
 
+@router.post("/save-bulk", response_model=List[SavedImageResponse])
+async def save_images_to_collection_bulk(
+    data: List[SavedImageCreate],
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_dir = ensure_collections_dir(user.id)
+    results = []
+    
+    for item in data:
+        # Check if image already exists in this collection to avoid duplicates
+        existing = db.query(SavedImage).filter(
+            SavedImage.collection_id == item.collection_id,
+            SavedImage.user_id == user.id,
+            SavedImage.filename == item.filename
+        ).first()
+        
+        if existing:
+            continue
+
+        try:
+            # 1. Fetch image bytes from ComfyUI
+            image_bytes = await comfy_adapter.get_image_bytes(
+                item.filename, item.subfolder or "", item.type or "output"
+            )
+            
+            # 2. Save image permanently
+            file_path = os.path.join(user_dir, item.filename)
+            with open(file_path, "wb") as f:
+                f.write(image_bytes)
+            
+            # 3. Create DB record
+            new_img = SavedImage(
+                collection_id=item.collection_id,
+                user_id=user.id,
+                filename=item.filename,
+                subfolder=None, # In collection, we store it flat in user dir
+                type="collection",
+                positive_prompt=item.positive_prompt,
+                negative_prompt=item.negative_prompt,
+                width=item.width,
+                height=item.height,
+                steps=item.steps,
+                seed=item.seed,
+                workflow=item.workflow,
+                is_liked=item.is_liked
+            )
+            db.add(new_img)
+            results.append(new_img)
+        except Exception as e:
+            logger.error(f"Failed to save image {item.filename} in bulk: {e}")
+            # Continue with other images
+            continue
+            
+    db.commit()
+    # Refresh to get IDs
+    for img in results:
+        db.refresh(img)
+        
+    return [_make_saved_image_response(img) for img in results]
+
 @router.patch("/images/{image_id}", response_model=SavedImageResponse)
 async def update_saved_image(
     image_id: int,
@@ -205,3 +266,32 @@ async def delete_saved_image(
     db.delete(img)
     db.commit()
     return {"message": "Image removed from collection"}
+
+@router.post("/images/delete-bulk")
+async def delete_saved_images_bulk(
+    image_ids: List[int],
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    images = db.query(SavedImage).filter(
+        SavedImage.id.in_(image_ids), 
+        SavedImage.user_id == user.id
+    ).all()
+    
+    user_dir = ensure_collections_dir(user.id)
+    deleted_count = 0
+    
+    for img in images:
+        # Delete file
+        file_path = os.path.join(user_dir, img.filename)
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                logger.error(f"Failed to delete file {file_path}: {e}")
+        
+        db.delete(img)
+        deleted_count += 1
+        
+    db.commit()
+    return {"message": f"Successfully removed {deleted_count} images from collection", "deleted_count": deleted_count}

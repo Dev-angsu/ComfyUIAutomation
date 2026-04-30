@@ -18,6 +18,9 @@ export const Collections: React.FC<{ onNavigate?: (tab: any) => void }> = ({ onN
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newColName, setNewColName] = useState("");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedImageIds, setSelectedImageIds] = useState<Set<number>>(new Set());
+  const [downloading, setDownloading] = useState(false);
 
   const fetchCollections = useCallback(async () => {
     setLoading(true);
@@ -156,6 +159,66 @@ export const Collections: React.FC<{ onNavigate?: (tab: any) => void }> = ({ onN
     }
   };
 
+  const toggleSelection = (id: number) => {
+    const next = new Set(selectedImageIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedImageIds(next);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedImageIds.size === 0) return;
+    
+    const isConfirmed = await confirm({
+      title: `Remove ${selectedImageIds.size} Images`,
+      message: `Are you sure you want to remove ${selectedImageIds.size} selected images from this collection? This will permanently delete the files.`,
+      variant: "danger",
+      confirmText: "Remove All"
+    });
+    if (!isConfirmed) return;
+
+    try {
+      await apiClient.deleteSavedImagesBulk(Array.from(selectedImageIds));
+      setCollections(prev => prev.map(c => ({
+        ...c,
+        images: c.images.filter(img => !selectedImageIds.has(img.id))
+      })));
+      setSelectedImageIds(new Set());
+      setSelectionMode(false);
+      addToast(`Successfully removed ${selectedImageIds.size} images.`, "success");
+    } catch (err) {
+      addToast("Failed to remove selected images.", "error");
+    }
+  };
+
+  const handleBulkDownload = async () => {
+    if (selectedImageIds.size === 0 || !activeCollection) return;
+    setDownloading(true);
+    try {
+      const JSZip = (await import("jszip")).default;
+      const saveAs = (await import("file-saver")).saveAs;
+      
+      const zip = new JSZip();
+      const imagesToDownload = activeCollection.images.filter(img => selectedImageIds.has(img.id));
+      
+      for (const img of imagesToDownload) {
+        const url = getImageUrl(img) + "&download=true";
+        const response = await fetch(url);
+        const blob = await response.blob();
+        zip.file(img.filename, blob);
+      }
+      
+      const content = await zip.generateAsync({ type: "blob" });
+      saveAs(content, `${activeCollection.name}-${Date.now()}.zip`);
+      addToast(`Downloaded ${imagesToDownload.length} images.`, "success");
+    } catch (err) {
+      console.error("Bulk download error:", err);
+      addToast("Failed to download images.", "error");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-8">
       {/* Collections Sidebar-like Horizontal Scroller */}
@@ -165,12 +228,23 @@ export const Collections: React.FC<{ onNavigate?: (tab: any) => void }> = ({ onN
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round" className="text-indigo-500"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
                 My Collections
             </h2>
-            <button 
-                onClick={() => setShowCreateModal(true)}
-                className="text-xs font-bold uppercase tracking-widest px-4 py-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 rounded-lg hover:bg-indigo-500/20 transition-all"
-            >
-                + New Collection
-            </button>
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={() => {
+                        setSelectionMode(!selectionMode);
+                        if (selectionMode) setSelectedImageIds(new Set());
+                    }}
+                    className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl transition-all border flex items-center justify-center gap-2 ${selectionMode ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20" : "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20"}`}
+                >
+                    {selectionMode ? "Cancel" : "Select Mode"}
+                </button>
+                <button 
+                    onClick={() => setShowCreateModal(true)}
+                    className="text-[10px] sm:text-xs font-bold uppercase tracking-widest px-4 py-2 sm:px-5 sm:py-2.5 bg-zinc-800 border border-zinc-700 text-zinc-300 rounded-xl hover:bg-zinc-700 transition-all"
+                >
+                    + New
+                </button>
+            </div>
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -201,6 +275,50 @@ export const Collections: React.FC<{ onNavigate?: (tab: any) => void }> = ({ onN
             </div>
           ))}
         </div>
+
+        {/* Bulk Action Toolbar */}
+        {selectionMode && activeCollection && activeCollection.images.length > 0 && (
+            <div className="flex items-center justify-between bg-zinc-900/50 border border-zinc-800 p-3 rounded-2xl animate-in slide-in-from-top-4 duration-300">
+                <div className="flex items-center gap-3">
+                    <div className="px-3 py-1.5 bg-zinc-800 rounded-lg border border-zinc-700">
+                        <span className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">
+                            {selectedImageIds.size} Selected
+                        </span>
+                    </div>
+                    {selectedImageIds.size > 0 && (
+                        <button
+                            onClick={() => {
+                                const allIds = activeCollection.images.map(img => img.id);
+                                if (selectedImageIds.size === allIds.length) setSelectedImageIds(new Set());
+                                else setSelectedImageIds(new Set(allIds));
+                            }}
+                            className="text-[10px] font-bold text-zinc-500 hover:text-zinc-300 uppercase tracking-widest transition-colors"
+                        >
+                            {selectedImageIds.size === activeCollection.images.length ? "Deselect All" : "Select All"}
+                        </button>
+                    )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <button
+                        disabled={selectedImageIds.size === 0 || downloading}
+                        onClick={handleBulkDownload}
+                        className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        {downloading ? "Zipping..." : "Download"}
+                    </button>
+                    <button
+                        disabled={selectedImageIds.size === 0}
+                        onClick={handleBulkDelete}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLineJoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        Remove
+                    </button>
+                </div>
+            </div>
+        )}
       </div>
 
       {/* Images Grid */}
@@ -214,10 +332,22 @@ export const Collections: React.FC<{ onNavigate?: (tab: any) => void }> = ({ onN
             <MasonryGallery
               images={activeCollection.images}
               getImageUrl={getImageUrl}
-              selectionMode={false}
-              selectedImages={new Set()}
-              toggleSelection={() => {}}
-              onImageClick={(img) => setSelectedImage(img)}
+              selectionMode={selectionMode}
+              selectedImages={new Set(Array.from(selectedImageIds).map(id => {
+                const img = activeCollection.images.find(i => i.id === id);
+                return img ? img.filename : "";
+              }))}
+              toggleSelection={(filename) => {
+                const img = activeCollection.images.find(i => i.filename === filename);
+                if (img) toggleSelection(img.id);
+              }}
+              onImageClick={(img) => {
+                if (selectionMode) {
+                  toggleSelection(img.id);
+                } else {
+                  setSelectedImage(img);
+                }
+              }}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-64 bg-zinc-900/30 border border-zinc-800 border-dashed rounded-3xl text-zinc-600 gap-4">
