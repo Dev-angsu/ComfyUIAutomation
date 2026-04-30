@@ -46,6 +46,11 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
+  const [showSavePromptModal, setShowSavePromptModal] = useState(false);
+  const [promptToSave, setPromptToSave] = useState<any | null>(null);
+  const [saveName, setSaveName] = useState("");
+  const [saveCollectionId, setSaveCollectionId] = useState<number | undefined>(undefined);
+  const [availableCollections, setAvailableCollections] = useState<PromptCollection[]>([]);
 
   // Tracks the last-known image filename fingerprint so polling only re-renders on real changes
   const prevFingerprintRef = useRef<string>("");
@@ -188,6 +193,38 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
     setSelectedImage(null);
     if (onNavigate) {
       onNavigate("studio");
+    }
+  };
+
+  const handleOpenSavePrompt = async (img: any) => {
+    setPromptToSave(img);
+    setSaveName(`Prompt ${img.filename.substring(0, 8)}`);
+    setShowSavePromptModal(true);
+    try {
+      const cols = await apiClient.getCollections();
+      setAvailableCollections(cols);
+    } catch (err) {
+      console.error("Failed to fetch collections", err);
+    }
+  };
+
+  const handleSavePrompt = async () => {
+    if (!promptToSave) return;
+    try {
+      await apiClient.createPrompt({
+        name: saveName || "Unnamed Prompt",
+        positive_prompt: promptToSave.positive_prompt,
+        negative_prompt: promptToSave.negative_prompt,
+        width: promptToSave.width,
+        height: promptToSave.height,
+        steps: promptToSave.steps,
+        collection_id: saveCollectionId
+      });
+      addToast("✨ Prompt saved to Prompts Zone!", "success");
+      setShowSavePromptModal(false);
+      setPromptToSave(null);
+    } catch (err) {
+      addToast("Failed to save prompt.", "error");
     }
   };
 
@@ -597,7 +634,17 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
                           <polyline points="7 10 12 15 17 10"></polyline>
                           <line x1="12" y1="15" x2="12" y2="3"></line>
                         </svg>
-                        Save
+                        Download
+                      </button>
+
+                      <button
+                        onClick={() => handleOpenSavePrompt(selectedImage)}
+                        className="bg-zinc-800/80 hover:bg-zinc-700 text-white px-4 py-3.5 rounded-[20px] lg:rounded-[24px] font-bold text-[10px] sm:text-xs lg:text-sm transition-all flex items-center justify-center gap-2 sm:gap-3 active:scale-95 group border border-white/5"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round" className="sm:w-5 sm:h-5">
+                          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        Save Prompt
                       </button>
                     </div>
                     
@@ -617,6 +664,70 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
                     </div>
                   </div>
                </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save Prompt Modal */}
+      {showSavePromptModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-300">
+            <h2 className="text-2xl font-bold text-white mb-6">Save to Prompts Zone</h2>
+            
+            <div className="space-y-6 mb-10">
+              <div className="space-y-2">
+                <label className="text-xs font-black text-zinc-500 uppercase tracking-widest block">Prompt Name</label>
+                <input
+                  type="text"
+                  value={saveName}
+                  onChange={(e) => setSaveName(e.target.value)}
+                  className="w-full bg-black/40 border border-zinc-800 rounded-2xl p-4 text-white placeholder-zinc-700 focus:outline-none focus:border-indigo-500/50 transition-all"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-black text-zinc-500 uppercase tracking-widest block">Collection (Optional)</label>
+                <select
+                  value={saveCollectionId || ""}
+                  onChange={(e) => setSaveCollectionId(e.target.value ? Number(e.target.value) : undefined)}
+                  className="w-full bg-black/40 border border-zinc-800 rounded-2xl p-4 text-white focus:outline-none focus:border-indigo-500/50 transition-all appearance-none"
+                >
+                  <option value="">No Collection</option>
+                  {availableCollections.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="bg-black/20 p-5 rounded-2xl border border-white/5">
+                <span className="text-[10px] font-black text-white/30 uppercase tracking-widest block mb-2">Parameters to Save</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Resolution</span>
+                    <span className="text-xs text-zinc-300 font-mono font-bold">{promptToSave?.width}×{promptToSave?.height}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Steps</span>
+                    <span className="text-xs text-zinc-300 font-mono font-bold">{promptToSave?.steps}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowSavePromptModal(false)}
+                className="flex-1 px-8 py-4 rounded-2xl text-zinc-400 font-bold hover:bg-zinc-800 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSavePrompt}
+                className="flex-1 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold transition-all shadow-xl shadow-indigo-500/20 active:scale-95"
+              >
+                Save Prompt
+              </button>
             </div>
           </div>
         </div>

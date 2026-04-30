@@ -219,3 +219,52 @@ class QueueStatusResponse(BaseModel):
     executing: int
     completed: int
     total: int
+
+
+# ── Prompts Zone DTOs ─────────────────────────────────────────────────────────
+
+class SavedPromptBase(BaseModel):
+    name: str
+    positive_prompt: str
+    negative_prompt: Optional[str] = None
+    steps: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    is_liked: bool = False
+    collection_id: Optional[int] = None
+
+class SavedPromptCreate(SavedPromptBase):
+    pass
+
+class SavedPromptUpdate(BaseModel):
+    name: Optional[str] = None
+    positive_prompt: Optional[str] = None
+    negative_prompt: Optional[str] = None
+    steps: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    is_liked: Optional[bool] = None
+    collection_id: Optional[int] = None
+
+class SavedPromptResponse(SavedPromptBase):
+    id: int
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class PromptCollectionBase(BaseModel):
+    name: str
+
+class PromptCollectionCreate(PromptCollectionBase):
+    pass
+
+class PromptCollectionResponse(PromptCollectionBase):
+    id: int
+    user_id: int
+    created_at: datetime
+    prompts: list[SavedPromptResponse] = []
+
+    class Config:
+        from_attributes = True

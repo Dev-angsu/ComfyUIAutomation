@@ -243,4 +243,96 @@ export const apiClient = {
     if (!response.ok) throw new Error("Failed to fetch pause status");
     return response.json();
   },
+
+  // ── Prompts Zone ──────────────────────────────────────────────────────────
+  async getCollections(): Promise<PromptCollection[]> {
+    const response = await fetch(`${API_BASE}/prompts/collections`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to fetch collections");
+    return response.json();
+  },
+
+  async createCollection(name: string): Promise<PromptCollection> {
+    const response = await fetch(`${API_BASE}/prompts/collections`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ name }),
+    });
+    if (!response.ok) throw new Error("Failed to create collection");
+    return response.json();
+  },
+
+  async deleteCollection(id: number) {
+    const response = await fetch(`${API_BASE}/prompts/collections/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to delete collection");
+    return response.json();
+  },
+
+  async getPrompts(collectionId?: number): Promise<SavedPrompt[]> {
+    const url = collectionId !== undefined 
+      ? `${API_BASE}/prompts/?collection_id=${collectionId}`
+      : `${API_BASE}/prompts/`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to fetch prompts");
+    return response.json();
+  },
+
+  async createPrompt(prompt: Partial<SavedPrompt>): Promise<SavedPrompt> {
+    const response = await fetch(`${API_BASE}/prompts/`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(prompt),
+    });
+    if (!response.ok) throw new Error("Failed to save prompt");
+    return response.json();
+  },
+
+  async updatePrompt(id: number, updates: Partial<SavedPrompt>): Promise<SavedPrompt> {
+    const response = await fetch(`${API_BASE}/prompts/${id}`, {
+      method: "PATCH",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(updates),
+    });
+    if (!response.ok) throw new Error("Failed to update prompt");
+    return response.json();
+  },
+
+  async deletePrompt(id: number) {
+    const response = await fetch(`${API_BASE}/prompts/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error("Failed to delete prompt");
+    return response.json();
+  },
 };
+
+export interface SavedPrompt {
+  id: number;
+  name: string;
+  positive_prompt: string;
+  negative_prompt?: string;
+  steps?: number;
+  width?: number;
+  height?: number;
+  is_liked: boolean;
+  collection_id?: number;
+  user_id: number;
+  created_at: string;
+}
+
+export interface PromptCollection {
+  id: number;
+  name: string;
+  user_id: number;
+  created_at: string;
+  prompts: SavedPrompt[];
+}

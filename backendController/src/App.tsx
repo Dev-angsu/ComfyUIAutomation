@@ -10,13 +10,14 @@ import { AuthProvider, useAuth } from "./lib/AuthContext";
 import { LoginPage } from "./components/LoginPage";
 import { RegisterPage } from "./components/RegisterPage";
 import { AccountPage } from "./components/AccountPage";
+import { PromptsZone } from "./components/PromptsZone";
 import { useSettings } from "./lib/settings-context";
 import { ConfirmProvider } from "./lib/confirm-context";
 
 
 function MainInterface() {
   const [activeTab, setActiveTab] = useState<
-    "studio" | "tasks" | "gallery" | "chat" | "profile"
+    "studio" | "tasks" | "gallery" | "chat" | "profile" | "prompts"
   >("studio");
 
   const [isBackendReady, setIsBackendReady] = useState(false);
@@ -169,6 +170,17 @@ function MainInterface() {
                   Stories
                 </button>
               )}
+
+              <button
+                onClick={() => { setActiveTab("prompts"); setIsSidebarOpen(false); }}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === "prompts"
+                  ? "bg-indigo-500/10 text-indigo-400"
+                  : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                  }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                Prompts Zone
+              </button>
             </nav>
 
             <div className="p-4 border-t border-zinc-800">
@@ -214,7 +226,9 @@ function MainInterface() {
                         ? "Stories"
                         : activeTab === "profile"
                           ? "Account"
-                          : "Tasks"}
+                          : activeTab === "prompts"
+                            ? "Prompts Zone"
+                            : "Tasks"}
                 </h2>
               </div>
               <div className="flex items-center gap-3">
@@ -251,6 +265,10 @@ function MainInterface() {
 
               <div className={`max-w-7xl mx-auto flex-col gap-6 ${activeTab === "profile" ? "flex" : "hidden"}`}>
                 <AccountPage />
+              </div>
+
+              <div className={`max-w-7xl mx-auto flex-col gap-6 ${activeTab === "prompts" ? "flex" : "hidden"}`}>
+                <PromptsZone onTakePrompt={() => setActiveTab("studio")} />
               </div>
             </main>
       </div>

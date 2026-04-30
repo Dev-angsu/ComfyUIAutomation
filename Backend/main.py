@@ -22,7 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from adapters.comfy_client import comfy_adapter
-from api import dictionaries, gallery, generate, models_list, chat_proxy, auth
+from api import dictionaries, gallery, generate, models_list, chat_proxy, auth, prompts_zone
 from api import websockets as ws_routes
 from config import settings
 from core.database import init_db
@@ -130,6 +130,7 @@ app.include_router(dictionaries.router)
 app.include_router(gallery.router)
 app.include_router(models_list.router)
 app.include_router(chat_proxy.router)
+app.include_router(prompts_zone.router)
 app.include_router(ws_routes.router)
 
 
