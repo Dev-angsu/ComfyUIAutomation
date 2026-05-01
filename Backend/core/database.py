@@ -4,8 +4,13 @@ from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime, timezone
 import os
 
-# Use SQLite for simplicity
-DB_URL = "sqlite:///./ai_studio.db"
+# Use environment variable for database path if provided (useful for Electron production)
+db_path = os.environ.get("DATABASE_PATH", "./ai_studio.db")
+# Ensure the directory exists if it's an absolute path
+if os.path.isabs(db_path) and os.path.dirname(db_path):
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+
+DB_URL = f"sqlite:///{db_path}"
 
 engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -20,6 +25,7 @@ class User(Base):
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
     is_paused = Column(Boolean, default=False)
+    comfy_url = Column(String, default="127.0.0.1:8188")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     tasks = relationship("Task", back_populates="owner")

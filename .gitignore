@@ -62,3 +62,15 @@ Backend/*.db
 
 # =============Images============
 Backend/collections_data/*
+
+# =========================
+# Electron / Builder
+# =========================
+dist-electron/
+release/
+*.exe
+*.dmg
+*.pkg
+*.deb
+*.rpm
+*.zip

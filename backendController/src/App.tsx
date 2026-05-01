@@ -14,6 +14,7 @@ import { AccountPage } from "./components/AccountPage";
 import { PromptsZone } from "./components/PromptsZone";
 import { useSettings } from "./lib/settings-context";
 import { ConfirmProvider } from "./lib/confirm-context";
+import { SetupPreferencesModal } from "./components/SetupPreferencesModal";
 
 
 function MainInterface() {
@@ -36,7 +37,7 @@ function MainInterface() {
     const checkHealth = async () => {
       try {
         const response = await fetch(
-          `http://${window.location.hostname}:8000/api/health`,
+          `http://127.0.0.1:8000/api/health`,
         );
         if (response.ok) {
           setIsBackendReady(true);
@@ -301,6 +302,15 @@ function MainInterface() {
 function AuthWrapper() {
   const { user, loading, connectionError } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
+
+  useEffect(() => {
+    if (user && (user as any).needs_setup) {
+      setShowSetup(true);
+    } else {
+      setShowSetup(false);
+    }
+  }, [user]);
 
   if (loading || connectionError) {
     return (
@@ -330,7 +340,15 @@ function AuthWrapper() {
     );
   }
 
-  return <MainInterface />;
+  return (
+    <>
+      <MainInterface />
+      <SetupPreferencesModal 
+        isOpen={showSetup} 
+        onComplete={() => setShowSetup(false)} 
+      />
+    </>
+  );
 }
 
 

@@ -27,15 +27,20 @@ from api import websockets as ws_routes
 from config import settings
 from core.database import init_db
 from workers.queue_worker import generation_worker, recover_tasks
+import os
 
 # ── Logging ────────────────────────────────────────────────────────────────────
+
+log_file = os.environ.get("LOG_FILE_PATH", "api_server.log")
+if os.path.isabs(log_file) and os.path.dirname(log_file):
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("api_server.log", encoding="utf-8"),
+        logging.FileHandler(log_file, encoding="utf-8"),
     ],
 )
 logger = logging.getLogger(__name__)

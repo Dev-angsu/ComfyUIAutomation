@@ -1,4 +1,4 @@
-export const BACKEND_URL = `http://${window.location.hostname}:8000`;
+export const BACKEND_URL = `http://127.0.0.1:8000`;
 const API_BASE = `${BACKEND_URL}/api`;
 
 const getAuthHeaders = () => {
@@ -77,6 +77,16 @@ export const apiClient = {
       error.status = response.status;
       throw error;
     }
+    return response.json();
+  },
+
+  async updatePreferences(data: { comfy_url: string }) {
+    const response = await fetch(`${API_BASE}/auth/preferences`, {
+      method: "PATCH",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error("Failed to update preferences");
     return response.json();
   },
 

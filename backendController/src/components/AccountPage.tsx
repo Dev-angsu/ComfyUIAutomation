@@ -1,5 +1,6 @@
 import React from "react";
 import { useAuth } from "../lib/AuthContext";
+import { apiClient } from "../lib/api-client";
 import { useSettings } from "../lib/settings-context";
 
 export function AccountPage() {
@@ -13,6 +14,25 @@ export function AccountPage() {
         [key]: !settings.navVisibility[key],
       },
     });
+  };
+
+  const [comfyUrl, setComfyUrl] = React.useState(user?.comfy_url || "127.0.0.1:8188");
+  const [isUpdating, setIsUpdating] = React.useState(false);
+  const [saveStatus, setSaveStatus] = React.useState<"idle" | "success" | "error">("idle");
+
+  const handleUpdateComfyUrl = async () => {
+    setIsUpdating(true);
+    setSaveStatus("idle");
+    try {
+      await apiClient.updatePreferences({ comfy_url: comfyUrl });
+      setSaveStatus("success");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    } catch (err) {
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (
@@ -90,16 +110,49 @@ export function AccountPage() {
           </div>
         </section>
 
-        {/* Account Extension Section (Future Features) */}
+        {/* ComfyUI Server Settings */}
         <section className="space-y-6">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2" /><rect x="2" y="14" width="20" height="8" rx="2" ry="2" /><line x1="6" y1="6" x2="6.01" y2="6" /><line x1="6" y1="18" x2="6.01" y2="18" /></svg>
             </div>
-            <h3 className="text-lg font-semibold text-white">Security & Access</h3>
+            <h3 className="text-lg font-semibold text-white">Service Connectivity</h3>
           </div>
           
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 flex flex-col items-center justify-center text-center space-y-4 border-dashed">
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                ComfyUI Server Address
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={comfyUrl}
+                  onChange={(e) => setComfyUrl(e.target.value)}
+                  placeholder="e.g. 127.0.0.1:8188"
+                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all"
+                />
+                <button
+                  onClick={handleUpdateComfyUrl}
+                  disabled={isUpdating}
+                  className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    saveStatus === "success" 
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/20" 
+                      : saveStatus === "error"
+                      ? "bg-red-500/20 text-red-400 border border-red-500/20"
+                      : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                  }`}
+                >
+                  {isUpdating ? "Saving..." : saveStatus === "success" ? "Saved!" : saveStatus === "error" ? "Error" : "Update"}
+                </button>
+              </div>
+              <p className="text-[10px] text-zinc-500 leading-relaxed">
+                Update the IP and Port of your ComfyUI instance. The application will automatically reconnect upon saving.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-purple-500/5 border border-purple-500/10 rounded-2xl p-6 flex flex-col items-center justify-center text-center space-y-4">
             <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLineJoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
             </div>

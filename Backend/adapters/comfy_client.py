@@ -56,6 +56,31 @@ class ComfyUIAdapter:
         self._progress_callbacks: dict[str, ProgressCallback] = {}
         # completion_futures: prompt_id → asyncio.Future (resolved when done or failed)
         self._completion_futures: dict[str, asyncio.Future[bool]] = {}
+        self._custom_url: Optional[str] = None
+
+    @property
+    def comfy_server(self) -> str:
+        return self._custom_url or settings.comfy_server
+
+    @property
+    def comfy_http_base(self) -> str:
+        return f"http://{self.comfy_server}"
+
+    @property
+    def comfy_ws_url(self) -> str:
+        return f"ws://{self.comfy_server}/ws?clientId={settings.client_id}"
+
+    def set_server_url(self, url: str) -> None:
+        """Update the server URL. Does NOT automatically restart the WS listener."""
+        self._custom_url = url
+        logger.info(f"ComfyUI adapter URL updated to: {self.comfy_server}")
+
+    async def restart_listener(self, new_url: Optional[str] = None) -> None:
+        """Stop and start the WebSocket listener with an optional new URL."""
+        if new_url:
+            self.set_server_url(new_url)
+        await self.stop_ws_listener()
+        await self.start_ws_listener()
 
     # ── REST Methods ──────────────────────────────────────────────────────────
 
@@ -67,7 +92,7 @@ class ComfyUIAdapter:
         payload = {"prompt": workflow, "client_id": settings.client_id}
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
-                f"{settings.comfy_http_base}/prompt",
+                f"{self.comfy_http_base}/prompt",
                 json=payload,
             )
             resp.raise_for_status()
@@ -81,7 +106,7 @@ class ComfyUIAdapter:
         """Fetch output metadata for a specific completed prompt."""
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(
-                f"{settings.comfy_http_base}/history/{prompt_id}"
+                f"{self.comfy_http_base}/history/{prompt_id}"
             )
             resp.raise_for_status()
             return resp.json()
@@ -92,7 +117,7 @@ class ComfyUIAdapter:
         Used by the Gallery endpoint (Phase 1 — no DB).
         """
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(f"{settings.comfy_http_base}/history")
+            resp = await client.get(f"{self.comfy_http_base}/history")
             resp.raise_for_status()
             return resp.json()
 
@@ -102,7 +127,7 @@ class ComfyUIAdapter:
         Returns {'unet': [...], 'vae': [...], 'clip': [...]}.
         """
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(f"{settings.comfy_http_base}/object_info")
+            resp = await client.get(f"{self.comfy_http_base}/object_info")
             resp.raise_for_status()
             info = resp.json()
 
@@ -137,7 +162,7 @@ class ComfyUIAdapter:
     async def get_samplers(self) -> dict[str, list[str]]:
         """Fetch available sampler names and scheduler types from ComfyUI."""
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(f"{settings.comfy_http_base}/object_info")
+            resp = await client.get(f"{self.comfy_http_base}/object_info")
             resp.raise_for_status()
             info = resp.json()
 
@@ -167,7 +192,7 @@ class ComfyUIAdapter:
         params = {"filename": filename, "subfolder": subfolder, "type": img_type}
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.get(
-                f"{settings.comfy_http_base}/view",
+                f"{self.comfy_http_base}/view",
                 params=params,
             )
             resp.raise_for_status()
@@ -176,7 +201,7 @@ class ComfyUIAdapter:
     async def get_queue_status(self) -> dict:
         """Fetch the current ComfyUI queue (running + pending)."""
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(f"{settings.comfy_http_base}/queue")
+            resp = await client.get(f"{self.comfy_http_base}/queue")
             resp.raise_for_status()
             return resp.json()
 
@@ -188,7 +213,7 @@ class ComfyUIAdapter:
         try:
             async with httpx.AsyncClient(timeout=2.0) as client:
                 # system_stats is a fast, no-side-effect endpoint
-                resp = await client.get(f"{settings.comfy_http_base}/system_stats")
+                resp = await client.get(f"{self.comfy_http_base}/system_stats")
                 return resp.status_code == 200
         except Exception:
             return False
@@ -262,9 +287,9 @@ class ComfyUIAdapter:
         """
         while True:
             try:
-                logger.info(f"Connecting to ComfyUI WS: {settings.comfy_ws_url}")
+                logger.info(f"Connecting to ComfyUI WS: {self.comfy_ws_url}")
                 async with websockets.connect(
-                    settings.comfy_ws_url,
+                    self.comfy_ws_url,
                     max_size=None,       # Don't limit message size (binary preview frames)
                     ping_interval=20,    # Keep-alive pings
                     ping_timeout=20,

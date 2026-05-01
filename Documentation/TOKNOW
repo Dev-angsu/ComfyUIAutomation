@@ -1,0 +1,47 @@
+Does this work for Mac?
+Yes! I've just updated the code to ensure full cross-platform compatibility:
+
+Path Handling: electron-main.cjs now automatically detects if it's running on Windows or Mac/Linux and looks for the correct backend filename (comfy-backend.exe vs comfy-backend).
+Permissions: On Mac/Linux, the app now automatically ensures the backend has "executable" permissions before trying to start it.
+Process Management: I've updated how the app shuts down the backend to use Unix-compliant process group termination on Mac.
+Standard Paths: On Mac, your database and logs will be stored in the standard ~/Library/Application Support/AI Studio folder.
+Note: To generate the actual Mac .app or .dmg, you would simply need to run the build commands (pyinstaller and npm run electron:build) on a Mac machine.
+
+I've already updated the files and the 
+walkthrough.md
+ with these cross-platform improvements.
+
+ Does this change anything for my dev setup (start.bat)?
+No, your dev setup will still work perfectly.
+
+Backward Compatibility: The backend now checks for the DATABASE_PATH environment variable, but if it's not found (like when running via start.bat), it defaults back to using ./ai_studio.db and ./api_server.log in the Backend folder, just like before.
+Reliable Connectivity: The frontend now points to 127.0.0.1:8000 instead of using the browser's hostname. Since 127.0.0.1 is the standard local loopback address, this works exactly like localhost but is more reliable inside the Electron environment.
+One-Time Setup: The only difference you'll notice is that when you log in to your dev account for the first time after this update, the Setup Preferences modal will appear once to confirm your ComfyUI URL.
+
+Global Storage & "Installers"
+Global Storage: Yes, both the win-unpacked folder and the single .exe file will use the same AppData\Roaming\backend-controller folder. Electron identifies the app by its name and appId, so they share the same persistent storage.
+How to make an "Installer": Right now, your build configuration is set to portable. To make a professional "Setup.exe" that installs the app into Program Files and creates a desktop shortcut, you need to change the target in your package.json.
+Info (not implemented yet): In package.json, under the win build settings, you would change:
+
+json
+"win": {
+  "target": "nsis" // Change 'portable' to 'nsis'
+}
+nsis is the standard Windows installer. When you run npm run electron:build, it will generate an AI Studio Setup 1.0.0.exe.
+
+::REBUILD::
+To rebuild the app after fixing the backend code (main.py), you need to follow these two steps in order.
+
+Step 1: Rebuild the Python Backend
+First, you need to update the comfy-backend.exe file with your fixes. Open a terminal in the Backend folder and run:
+
+powershell
+# Make sure your virtual environment is active
+.\venv\Scripts\python.exe -m PyInstaller backend.spec --noconfirm
+Step 2: Rebuild the Electron App
+Once the backend build is finished (it will say Build complete!), go to the backendController folder and run:
+
+powershell
+npm run electron:build
+Why two steps?
+The Electron build process simply "grabs" whatever is currently inside Backend\dist\comfy-backend.exe and puts it inside the app. If you don't run Step 1, you'll keep packaging the old broken code!

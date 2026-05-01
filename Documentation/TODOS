@@ -74,3 +74,4 @@ TODOS NOW
 1.Currently the images are not loading in time, it's taking a lot of time. Also, whenever a new image is created by comfy ui and added to the galary, it's loading the images again/ all images except the new one is staying black. Find out why. Fix it. If I refresh the page, then images are loaded again. How to cache the images, so that once loaded in my frontend, it doesnt have to load even after reload, unless comfyui itself doesnt have the image anymore, then delete the cached image. Fix these inconsistencies to improve the user experience. 
 
 2.
+

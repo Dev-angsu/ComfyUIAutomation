@@ -6,6 +6,7 @@ from core.auth import get_password_hash, verify_password, create_access_token, g
 from pydantic import BaseModel
 from typing import Optional
 from datetime import timedelta
+from adapters.comfy_client import comfy_adapter
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -19,9 +20,14 @@ class UserResponse(BaseModel):
     username: str
     email: Optional[str] = None
     is_paused: bool = False
+    comfy_url: str
+    needs_setup: bool = False
 
     class Config:
         from_attributes = True
+
+class PreferencesUpdate(BaseModel):
+    comfy_url: str
 
 @router.post("/register", response_model=UserResponse)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
@@ -58,4 +64,27 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
+    # Sync adapter with current user's preferred URL if it's different
+    if current_user.comfy_url and comfy_adapter.comfy_server != current_user.comfy_url:
+        comfy_adapter.set_server_url(current_user.comfy_url)
+    
+    # Simple logic to determine if setup is needed
+    # If it's still default, we might want to flag it for first-time setup
+    # but the user said "logging in for first time, ask for these preferences"
+    # We can add a flag or just check if it's the default value.
+    res = UserResponse.from_orm(current_user)
+    if current_user.comfy_url == "127.0.0.1:8188":
+         # In a real app we might use a separate flag, but this works for now
+         res.needs_setup = True
+    return res
+
+@router.patch("/preferences", response_model=UserResponse)
+async def update_preferences(pref: PreferencesUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    current_user.comfy_url = pref.comfy_url
+    db.commit()
+    db.refresh(current_user)
+    
+    # Restart listener with new URL
+    await comfy_adapter.restart_listener(pref.comfy_url)
+    
     return current_user
