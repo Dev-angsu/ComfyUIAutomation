@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { apiClient } from "../lib/api-client";
+import { apiClient, BACKEND_URL } from "../lib/api-client";
 import { useToast } from "../lib/toast-context";
 import { useSettings } from "../lib/settings-context";
 import JSZip from "jszip";
@@ -9,7 +9,7 @@ import { ImageGalleryModal } from "./ImageGalleryModal";
 import { PromptCollection } from "../lib/api-client";
 import { useConfirm } from "../lib/confirm-context";
 
-const API_ROOT = `http://${window.location.hostname}:8000`; // Dynamically use the correct host
+const API_ROOT = BACKEND_URL; // Use the standardized backend URL
 
 // ── Browser Cache API helpers ──────────────────────────────────────────────
 const GALLERY_CACHE_NAME = "gallery-images-v1";

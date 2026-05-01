@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { apiClient, ImageCollection, SavedImage } from "../lib/api-client";
+import { apiClient, ImageCollection, SavedImage, BACKEND_URL } from "../lib/api-client";
 import { useToast } from "../lib/toast-context";
 import { MasonryGallery, ImageCard } from "./Gallery";
 import { ImageGalleryModal } from "./ImageGalleryModal";
 import { useSettings } from "../lib/settings-context";
 import { useConfirm } from "../lib/confirm-context";
 
-const API_ROOT = `http://${window.location.hostname}:8000`;
+const API_ROOT = BACKEND_URL;
 
 export const Collections: React.FC<{ onNavigate?: (tab: any) => void }> = ({ onNavigate }) => {
   const { addToast } = useToast();

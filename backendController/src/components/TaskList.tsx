@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { apiClient } from "../lib/api-client";
+import { apiClient, BACKEND_URL } from "../lib/api-client";
 import { useToast } from "../lib/toast-context";
 import { useConfirm } from "../lib/confirm-context";
 
@@ -158,7 +158,7 @@ export const TaskList: React.FC = () => {
     if (!foundPath) return "";
     const baseUrl = foundPath.startsWith("http")
       ? foundPath
-      : `http://localhost:8000${foundPath.startsWith("/") ? "" : "/"}${foundPath}`;
+      : `${BACKEND_URL}${foundPath.startsWith("/") ? "" : "/"}${foundPath}`;
 
     // Use the unique task.id to bypass disk cache for identically named files
     const token = localStorage.getItem("token");

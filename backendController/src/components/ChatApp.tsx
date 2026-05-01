@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useLocalStorage } from "../lib/useLocalStorage";
 import { useSettings } from "../lib/settings-context";
-import { apiClient } from "../lib/api-client";
+import { apiClient, BACKEND_URL } from "../lib/api-client";
 import { useToast } from "../lib/toast-context";
 import { useConfirm } from "../lib/confirm-context";
 
@@ -109,7 +109,7 @@ export function ChatApp() {
 
     try {
       // Use the backend as a proxy to bypass CORS issues
-      const proxyUrl = `http://${window.location.hostname}:8000/api/chat/proxy`;
+      const proxyUrl = `${BACKEND_URL}/api/chat/proxy`;
       
       const response = await fetch(proxyUrl, {
         method: "POST",
@@ -197,7 +197,7 @@ export function ChatApp() {
       const metaPrompt = `Create a single prompt for creating an image based on this environment [${lastMessages}] from these recommendation of how to write the prompt(give only the single prompt - no other text, give the final prompt dont leave any placeholder for me to fill) : [${guidelines}]`;
 
       // 4. Request refined image prompt from LLM (via proxy)
-      const proxyUrl = `http://${window.location.hostname}:8000/api/chat/proxy`;
+      const proxyUrl = `${BACKEND_URL}/api/chat/proxy`;
       const response = await fetch(proxyUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

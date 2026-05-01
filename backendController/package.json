@@ -51,6 +51,14 @@
         {
           "from": "../Backend/dist/comfy-backend.exe",
           "to": "backend/comfy-backend.exe"
+        },
+        {
+          "from": "../Jobs",
+          "to": "Jobs"
+        },
+        {
+          "from": "../Backend/workflows",
+          "to": "backend/workflows"
         }
       ]
     },
@@ -60,6 +68,14 @@
         {
           "from": "../Backend/dist/comfy-backend",
           "to": "backend/comfy-backend"
+        },
+        {
+          "from": "../Jobs",
+          "to": "Jobs"
+        },
+        {
+          "from": "../Backend/workflows",
+          "to": "backend/workflows"
         }
       ]
     }

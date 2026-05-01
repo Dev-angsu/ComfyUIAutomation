@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { TaskList } from "./components/TaskList";
-import { apiClient } from "./lib/api-client";
+import { apiClient, BACKEND_URL } from "./lib/api-client";
 import { Gallery } from "./components/Gallery";
 import { SettingsProvider } from "./lib/settings-context";
 import { ToastProvider } from "./lib/toast-context";
@@ -37,7 +37,7 @@ function MainInterface() {
     const checkHealth = async () => {
       try {
         const response = await fetch(
-          `http://127.0.0.1:8000/api/health`,
+          `${BACKEND_URL}/api/health`,
         );
         if (response.ok) {
           setIsBackendReady(true);
