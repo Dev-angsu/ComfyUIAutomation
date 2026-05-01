@@ -48,6 +48,7 @@
     "extraResources": [],
     "win": {
       "target": "portable",
+      "icon": "build/icon.ico",
       "extraResources": [
         {
           "from": "../Backend/dist/comfy-backend.exe",
@@ -65,6 +66,7 @@
     },
     "mac": {
       "target": "dmg",
+      "icon": "build/icon.icns",
       "extraResources": [
         {
           "from": "../Backend/dist/comfy-backend",

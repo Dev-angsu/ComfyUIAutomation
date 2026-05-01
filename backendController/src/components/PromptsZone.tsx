@@ -6,9 +6,10 @@ import { useConfirm } from "../lib/confirm-context";
 
 interface PromptsZoneProps {
   onTakePrompt: () => void;
+  isActive?: boolean;
 }
 
-export const PromptsZone: React.FC<PromptsZoneProps> = ({ onTakePrompt }) => {
+export const PromptsZone: React.FC<PromptsZoneProps> = ({ onTakePrompt, isActive }) => {
   const { addToast } = useToast();
   const { confirm } = useConfirm();
   const { updateSettings } = useSettings();
@@ -44,8 +45,10 @@ export const PromptsZone: React.FC<PromptsZoneProps> = ({ onTakePrompt }) => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (isActive) {
+      fetchData();
+    }
+  }, [isActive]);
 
   const toggleCollection = (id: number) => {
     const next = new Set(expandedCollections);

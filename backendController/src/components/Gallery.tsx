@@ -38,7 +38,7 @@ async function pruneGalleryCache(validFilenames: Set<string>): Promise<void> {
   }
 }
 
-export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "gallery" | "chat") => void }> = ({ onNavigate }) => {
+export const Gallery: React.FC<{ isActive?: boolean, onNavigate?: (tab: "studio" | "tasks" | "gallery" | "chat") => void }> = ({ isActive, onNavigate }) => {
   const { addToast } = useToast();
   const { confirm } = useConfirm();
   const { updateSettings } = useSettings();
@@ -73,15 +73,11 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
         const data = await apiClient.getGallery(page, pageSize);
         const incoming: any[] = data.images || [];
 
-        // ── Smart diff: only update React state if the image list actually changed ──
-        // Using filenames as a lightweight fingerprint avoids unnecessary re-renders
-        // which would reset `isLoaded` on every ImageCard and cause the black-flash.
         const fingerprint = incoming.map((i: any) => i.filename).join(",");
         if (fingerprint !== prevFingerprintRef.current) {
           prevFingerprintRef.current = fingerprint;
           setImages(incoming);
 
-          // Prune browser Cache API: remove entries for images no longer in the gallery
           const validNames = new Set<string>(incoming.map((i: any) => i.filename));
           pruneGalleryCache(validNames);
         }
@@ -101,16 +97,16 @@ export const Gallery: React.FC<{ onNavigate?: (tab: "studio" | "tasks" | "galler
       }
     };
 
-    // Reset fingerprint when page/pageSize changes so we always render on navigation
+    if (!isActive) return;
+
     prevFingerprintRef.current = "";
     fetchGallery();
-    // Only run live background refreshes when looking at the first page
     const interval = setInterval(() => {
       if (page === 1) fetchGallery();
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [page, pageSize]);
+  }, [page, pageSize, isActive]);
 
   const handlePrevImage = React.useCallback(() => {
     if (!selectedImage) return;

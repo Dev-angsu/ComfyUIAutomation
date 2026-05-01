@@ -120,14 +120,20 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('quit', () => {
+app.on('will-quit', () => {
   if (backendProcess) {
-    // Kill the backend process tree
+    console.log('Killing backend process tree...');
     if (process.platform === 'win32') {
-      spawn('taskkill', ['/pid', backendProcess.pid, '/f', '/t']);
+      // Use spawnSync to ensure the kill command completes before Electron exits
+      const { spawnSync } = require('child_process');
+      spawnSync('taskkill', ['/pid', backendProcess.pid, '/f', '/t']);
     } else {
-      // On Unix, we kill the process group or just the PID
-      process.kill(-backendProcess.pid); // Kill process group
+      // Kill the process group on Unix
+      try {
+        process.kill(-backendProcess.pid, 'SIGKILL');
+      } catch (e) {
+        try { backendProcess.kill('SIGKILL'); } catch (i) {}
+      }
     }
   }
 });

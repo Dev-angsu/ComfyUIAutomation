@@ -8,7 +8,7 @@ import { useConfirm } from "../lib/confirm-context";
 
 const API_ROOT = BACKEND_URL;
 
-export const Collections: React.FC<{ onNavigate?: (tab: any) => void }> = ({ onNavigate }) => {
+export const Collections: React.FC<{ isActive?: boolean, onNavigate?: (tab: any) => void }> = ({ isActive, onNavigate }) => {
   const { addToast } = useToast();
   const { confirm } = useConfirm();
   const { updateSettings } = useSettings();
@@ -27,20 +27,19 @@ export const Collections: React.FC<{ onNavigate?: (tab: any) => void }> = ({ onN
     try {
       const data = await apiClient.getImageCollections();
       setCollections(data);
-      if (data.length > 0 && activeCollectionId === null) {
-        setActiveCollectionId(data[0].id);
-      }
     } catch (err) {
       console.error("Failed to fetch collections:", err);
       addToast("Failed to load collections.", "error");
     } finally {
       setLoading(false);
     }
-  }, [activeCollectionId, addToast]);
+  }, [addToast]);
 
   useEffect(() => {
-    fetchCollections();
-  }, [fetchCollections]);
+    if (isActive) {
+      fetchCollections();
+    }
+  }, [fetchCollections, isActive]);
 
   const activeCollection = collections.find(c => c.id === activeCollectionId);
 
@@ -251,7 +250,7 @@ export const Collections: React.FC<{ onNavigate?: (tab: any) => void }> = ({ onN
           {collections.map(col => (
             <div
               key={col.id}
-              onClick={() => setActiveCollectionId(col.id)}
+              onClick={() => setActiveCollectionId(prev => prev === col.id ? null : col.id)}
               className={`group relative px-5 py-3 rounded-xl border transition-all flex items-center gap-3 cursor-pointer ${
                 activeCollectionId === col.id
                   ? "bg-indigo-500/10 border-indigo-500/50 text-indigo-300 shadow-lg shadow-indigo-500/10"
