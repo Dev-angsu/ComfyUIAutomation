@@ -16,7 +16,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js') // We'll create this if needed
     },
     title: "AI Studio Desktop",
-    autoHideMenuBar: true
+    autoHideMenuBar: true,
+    icon: path.join(__dirname, 'build', 'icon_512.png')
   });
 
   const isDev = process.env.NODE_ENV === 'development';

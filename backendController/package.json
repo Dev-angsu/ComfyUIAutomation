@@ -42,7 +42,8 @@
     "files": [
       "dist/**/*",
       "electron-main.cjs",
-      "preload.js"
+      "preload.js",
+      "build/icon_512.png"
     ],
     "extraResources": [],
     "win": {
