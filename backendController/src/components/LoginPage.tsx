@@ -21,7 +21,7 @@ export const LoginPage: React.FC<{ onToggle: () => void }> = ({ onToggle }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] text-white p-4">
+    <div className="h-full flex items-center justify-center bg-[#0a0a0a] text-white p-4">
       <div className="w-full max-w-md bg-[#121212] border border-white/10 rounded-2xl p-8 shadow-2xl">
         <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
           AI Studio

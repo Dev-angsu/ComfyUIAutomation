@@ -15,6 +15,7 @@ import { PromptsZone } from "./components/PromptsZone";
 import { useSettings } from "./lib/settings-context";
 import { ConfirmProvider } from "./lib/confirm-context";
 import { SetupPreferencesModal } from "./components/SetupPreferencesModal";
+import { TitleBar } from "./components/TitleBar";
 
 
 function MainInterface() {
@@ -73,7 +74,7 @@ function MainInterface() {
 
   if (!isBackendReady) {
     return (
-      <div className="flex h-screen bg-zinc-950 items-center justify-center text-zinc-200 font-sans selection:bg-indigo-500/30">
+      <div className="flex h-full bg-zinc-950 items-center justify-center text-zinc-200 font-sans selection:bg-indigo-500/30">
         <div className="flex flex-col items-center justify-center space-y-6 bg-zinc-900/50 rounded-2xl border border-zinc-800 p-10 shadow-2xl">
           <div className="w-12 h-12 border-4 border-zinc-700 border-t-indigo-500 rounded-full animate-spin"></div>
           <div className="text-center space-y-2">
@@ -93,7 +94,7 @@ function MainInterface() {
   }
 
   return (
-    <div className="flex h-screen bg-zinc-950 text-zinc-200 font-sans selection:bg-indigo-500/30 overflow-hidden relative">
+    <div className="flex h-full bg-zinc-950 text-zinc-200 font-sans selection:bg-indigo-500/30 overflow-hidden relative">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div
@@ -313,7 +314,7 @@ function AuthWrapper() {
 
   if (loading || connectionError) {
     return (
-      <div className="flex h-screen bg-zinc-950 items-center justify-center text-zinc-200 font-sans selection:bg-indigo-500/30">
+      <div className="flex h-full bg-zinc-950 items-center justify-center text-zinc-200 font-sans selection:bg-indigo-500/30">
         <div className="flex flex-col items-center justify-center space-y-6 bg-zinc-900/50 rounded-2xl border border-zinc-800 p-10 shadow-2xl">
           <div className="w-12 h-12 border-4 border-zinc-700 border-t-indigo-500 rounded-full animate-spin"></div>
           <div className="text-center space-y-2">
@@ -357,7 +358,12 @@ export default function App() {
       <ConfirmProvider>
         <ToastProvider>
           <SettingsProvider>
-            <AuthWrapper />
+            <div className="flex flex-col h-screen overflow-hidden">
+              <TitleBar />
+              <div className="flex-1 min-h-0 relative">
+                <AuthWrapper />
+              </div>
+            </div>
           </SettingsProvider>
         </ToastProvider>
       </ConfirmProvider>

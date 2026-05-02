@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const waitOn = require('wait-on');
@@ -13,11 +13,12 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js') // We'll create this if needed
+      preload: path.join(__dirname, 'preload.js')
     },
-    title: "AI Studio Desktop",
+    title: "LAI Studio Desktop",
+    frame: false,
     autoHideMenuBar: true,
-    icon: path.join(__dirname, 'build', 'icon_512.png')
+    icon: path.join(__dirname, 'build', 'icon.ico')
   });
 
   const isDev = process.env.NODE_ENV === 'development';
@@ -34,13 +35,31 @@ function createWindow() {
   });
 }
 
+// IPC Handlers for custom title bar
+ipcMain.on('window-minimize', () => {
+  if (mainWindow) mainWindow.minimize();
+});
+
+ipcMain.on('window-maximize', () => {
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow.maximize();
+    }
+  }
+});
+
+ipcMain.on('window-close', () => {
+  if (mainWindow) mainWindow.close();
+});
+
 function startBackend() {
   const isDev = process.env.NODE_ENV === 'development';
   let backendPath;
 
   if (isDev) {
     // In dev, we assume python is in path and we run from source
-    // Adjust path to point to the Backend directory relative to this file
     const pythonPath = path.join(__dirname, '..', 'Backend', 'venv', 'Scripts', 'python.exe');
     const backendDir = path.join(__dirname, '..', 'Backend');
     backendProcess = spawn(pythonPath, ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '8000'], {
@@ -49,21 +68,21 @@ function startBackend() {
     });
   } else {
     // In production, we run the bundled executable
-    const exeName = process.platform === 'win32' ? 'comfy-backend.exe' : 'comfy-backend';
+    const exeName = process.platform === 'win32' ? 'LAI Backend.exe' : 'LAI Backend';
     backendPath = path.join(process.resourcesPath, 'backend', exeName);
-    
+
     if (process.platform === 'win32') {
-       // fallback for different packing structures
-       if (!require('fs').existsSync(backendPath)) {
-         backendPath = path.join(__dirname, '..', 'Backend', 'dist', exeName);
-       }
+      // fallback for different packing structures
+      if (!require('fs').existsSync(backendPath)) {
+        backendPath = path.join(__dirname, '..', 'Backend', 'dist', exeName);
+      }
     } else {
-       // On Mac/Linux, check if it's in the app bundle or local dist
-       if (!require('fs').existsSync(backendPath)) {
-         backendPath = path.join(__dirname, '..', 'Backend', 'dist', exeName);
-       }
-       // Ensure executable permissions on Unix
-       try { require('fs').chmodSync(backendPath, 0o755); } catch(e) {}
+      // On Mac/Linux, check if it's in the app bundle or local dist
+      if (!require('fs').existsSync(backendPath)) {
+        backendPath = path.join(__dirname, '..', 'Backend', 'dist', exeName);
+      }
+      // Ensure executable permissions on Unix
+      try { require('fs').chmodSync(backendPath, 0o755); } catch (e) { }
     }
 
     const backendDir = path.dirname(backendPath);
@@ -132,7 +151,7 @@ app.on('will-quit', () => {
       try {
         process.kill(-backendProcess.pid, 'SIGKILL');
       } catch (e) {
-        try { backendProcess.kill('SIGKILL'); } catch (i) {}
+        try { backendProcess.kill('SIGKILL'); } catch (i) { }
       }
     }
   }

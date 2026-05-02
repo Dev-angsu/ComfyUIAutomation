@@ -45,3 +45,8 @@ powershell
 npm run electron:build
 Why two steps?
 The Electron build process simply "grabs" whatever is currently inside Backend\dist\comfy-backend.exe and puts it inside the app. If you don't run Step 1, you'll keep packaging the old broken code!
+
+
+::ICON CREATION::
+npx -y electron-icon-builder --input=./public/lai.png --output=./build --flatten
+copy build\icons\icon.ico build\icon.ico; copy build\icons\icon.icns build\icon.icns
