@@ -48,7 +48,10 @@
     ],
     "extraResources": [],
     "win": {
-      "target": "portable",
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "build/icon.ico",
       "extraResources": [
         {
@@ -64,6 +67,13 @@
           "to": "backend/workflows"
         }
       ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": true,
+      "allowElevation": true,
+      "shortcutName": "LAI Studio"
     },
     "mac": {
       "target": "dmg",
